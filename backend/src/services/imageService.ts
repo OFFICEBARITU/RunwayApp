@@ -58,7 +58,7 @@ STRICT RULES:
   }
 
   const submitResponse = await fetch(
-    'https://queue.fal.run/fal-ai/flux-kontext-pro',
+    'https://queue.fal.run/fal-ai/flux-pro/kontext',
     {
       method: 'POST',
       headers: {
@@ -90,7 +90,7 @@ STRICT RULES:
 
 async function pollFalResult(requestId: string, maxWaitMs = 120000): Promise<string> {
   const start = Date.now()
-  const statusUrl = `https://queue.fal.run/fal-ai/flux-kontext-pro/requests/${requestId}`
+  const statusUrl = `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}`
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 3000))
