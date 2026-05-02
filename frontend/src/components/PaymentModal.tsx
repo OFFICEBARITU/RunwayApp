@@ -12,7 +12,7 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const sessionRef = useRef<string>('')
 
-  const CHECKOUT_URL = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
+  const CHECKOUT_URL = process.env.NEXT_PUBLIC_GUMROAD_CHECKOUT_URL || ''
   const API = process.env.NEXT_PUBLIC_API_URL || ''
 
   // Start polling after payment button clicked
@@ -45,8 +45,8 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
     setStatus('waiting')
     startPolling(sessionId)
 
-    // Open Lemon Squeezy with session in URL
-    const url = `${CHECKOUT_URL}?checkout[custom][session_id]=${sessionId}`
+    // Open Gumroad with session in URL
+    const url = `${CHECKOUT_URL}?wanted=true&session_id=${sessionId}`
     window.open(url, '_blank', 'width=500,height=700')
   }
 
@@ -106,7 +106,7 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
           </>
         )}
 
-        <p style={{ fontSize: '7px', color: 'rgba(245,240,232,0.15)', textAlign: 'center', marginTop: '20px', letterSpacing: '0.08em' }}>🔒 Secured by Lemon Squeezy · Encrypted payment</p>
+        <p style={{ fontSize: '7px', color: 'rgba(245,240,232,0.15)', textAlign: 'center', marginTop: '20px', letterSpacing: '0.08em' }}>🔒 Secured by Gumroad · Encrypted payment</p>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
