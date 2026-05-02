@@ -17,7 +17,7 @@ const storage = multer.diskStorage({
   filename: (_, file, cb) => cb(null, `${uuid()}-${Date.now()}${path.extname(file.originalname)}`),
 })
 
-const fileFilter = (_: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_: any, file: any, cb: multer.FileFilterCallback) => {
   const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp', 'image/tiff', 'image/avif']
   if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/')) cb(null, true)
   else cb(new Error('Invalid file type. Only JPG, PNG, WEBP allowed.'))
@@ -69,7 +69,7 @@ analyzeRouter.post(
       validatedPayments.delete(transactionId)
 
       // ── FILE VALIDATION ────────────────────────────────────────
-      const files = req.files as Record<string, Express.Multer.File[]>
+      const files = req.files as Record<string, any[]>
       const img0 = files?.image0?.[0]
       const img1 = files?.image1?.[0]
       const img2 = files?.image2?.[0]

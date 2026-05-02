@@ -42,10 +42,10 @@ app.use('/webhooks', webhookRouter)
 app.use('/api/report', reportRouter)
 
 // Health check
-app.get('/health', (_, res) => res.json({ status: 'ok', service: 'Miroir API' }))
+app.get('/health', (_: any, res: any) => res.json({ status: 'ok', service: 'Runway API' }))
 
 app.listen(PORT, () => {
-  console.log(`✦ Miroir API running on port ${PORT}`)
+  console.log(`✦ Runway API running on port ${PORT}`)
 })
 
 export default app
