@@ -3,10 +3,9 @@ import path from 'path'
 import { v4 as uuid } from 'uuid'
 
 const REPORTS_DIR = path.join(__dirname, '../../reports')
-// src/assets is not compiled by tsc — resolve from project root
 const PROJECT_ROOT = path.resolve(__dirname, '../../')
 const BASEIMAGE_PATH = path.join(PROJECT_ROOT, 'src/assets/BASEIMAGE.png')
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+const FAL_API_KEY = process.env.FAL_API_KEY
 
 export async function generatePosterImage(data: {
   imageBase64: string[]
@@ -15,89 +14,120 @@ export async function generatePosterImage(data: {
 }): Promise<string> {
   const { imageBase64, colorimetry, hairstyle } = data
 
-  // Detect gender from analysis
   const gender: string = (hairstyle?.gender || colorimetry?.gender || 'female').toLowerCase()
   const isMale = gender.includes('male') || gender.includes('man') || gender.includes('hombre')
 
-  // Build gender-specific prompt
-  const genderInstructions = isMale
-    ? `The subject is MALE. Place him SEATED on the same step as Stanley Tucci, positioned in the center of the staircase. Dress him in a matte black formal tuxedo.`
-    : `The subject is FEMALE. Place her STANDING, positioned exactly below Anne Hathaway on the left side. Dress her in a long gala dress. Choose the dress color based on her skin and hair colorimetry for maximum harmony — her season is ${colorimetry?.season || 'Soft Autumn'}.`
+  const season = colorimetry?.season || colorimetry?.seasonSubtype || 'Soft Autumn'
+  const dressColor = getDressColor(season)
 
-  const prompt = `Photorealistic poster editing task. You are given two images: the first is a movie poster base (The Devil Wears Prada 2 with Meryl Streep, Anne Hathaway, Emily Blunt, and Stanley Tucci on a white marble staircase), and the second is a photo of a real person to integrate into the poster.
+  const genderInstructions = isMale
+    ? `Add a new MALE person SEATED on the stairs next to Stanley Tucci in the center. He wears a matte black formal tuxedo with bow tie. His face must be extracted exactly from the reference photo provided.`
+    : `Add a new FEMALE person STANDING on the left side of the stairs below Anne Hathaway. She wears an elegant long gala dress in ${dressColor}. Her face must be extracted exactly from the reference photo provided.`
+
+  const prompt = `Photorealistic movie poster editing. This is The Devil Wears Prada 2 poster featuring Meryl Streep in red dress at top, Anne Hathaway in white suit on left, Emily Blunt in black dress on right, and Stanley Tucci in tuxedo seated at bottom on white marble stairs.
+
+TASK: ${genderInstructions}
 
 STRICT RULES:
-1. IDENTITY FIDELITY: Extract the face from the second image directly. Transfer the exact facial structure, eyes, nose, and mouth. Do NOT generate a new face. Apply face restoration and edge refinement so the face blends naturally with the studio lighting of the poster.
-2. REALISTIC SCALE: The added person must be proportional in size and height to the existing actors and the staircase perspective. Not too big, not too small.
-3. POSITIONING: ${genderInstructions}
-4. ORIGINALS INTACT: Do NOT modify, move or alter Meryl Streep, Anne Hathaway, Emily Blunt, or Stanley Tucci in any way.
-5. KEEP TITLE: The text "THE DEVIL WEARS PRADA 2" must remain intact and unmodified.
-6. NO EXTRA TEXT: No additional text, credits, watermarks, or overlays.
-7. OUTPUT: Vertical high-resolution image, PNG format, photorealistic quality.`
+- Face identity: use the exact face from the reference image. Do not generate a new face.
+- Proportional scale: new person must match the scale and perspective of existing cast members.
+- Do NOT move, modify or alter Meryl Streep, Anne Hathaway, Emily Blunt or Stanley Tucci in any way.
+- Keep the title text "THE DEVIL WEARS PRADA 2" exactly as it appears.
+- Studio lighting: match the white/overhead studio light from the original poster.
+- No extra text, watermarks or overlays.
+- Output: vertical high-resolution photorealistic image.`
 
-  // Load base image
   const baseImageBuffer = fs.readFileSync(BASEIMAGE_PATH)
   const baseImageBase64 = baseImageBuffer.toString('base64')
+  const baseImageDataUrl = `data:image/png;base64,${baseImageBase64}`
 
-  // Use first user image (face photo — most frontal)
-  const userImageBase64 = imageBase64[0].replace(/^data:image\/\w+;base64,/, '')
+  const userImageRaw = imageBase64[0]
+  const userImageDataUrl = userImageRaw.startsWith('data:')
+    ? userImageRaw
+    : `data:image/jpeg;base64,${userImageRaw}`
 
   const requestBody = {
-    contents: [
-      {
-        parts: [
-          {
-            inline_data: {
-              mime_type: 'image/png',
-              data: baseImageBase64,
-            },
-          },
-          {
-            inline_data: {
-              mime_type: 'image/jpeg',
-              data: userImageBase64,
-            },
-          },
-          {
-            text: prompt,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      responseModalities: ['image', 'text'],
-    },
+    prompt,
+    image_url: baseImageDataUrl,
+    image_urls: [userImageDataUrl],
+    num_inference_steps: 28,
+    guidance_scale: 3.5,
+    num_images: 1,
+    output_format: 'png',
+    safety_tolerance: '2',
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+  const submitResponse = await fetch(
+    'https://queue.fal.run/fal-ai/flux-kontext-pro',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Key ${FAL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(requestBody),
     }
   )
 
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`Gemini image generation failed: ${errText}`)
+  if (!submitResponse.ok) {
+    const errText = await submitResponse.text()
+    throw new Error(`fal.ai submission failed: ${errText}`)
   }
 
-  const result = await response.json() as any
+  const { request_id } = await submitResponse.json() as any
+  const resultUrl = await pollFalResult(request_id)
 
-  // Extract image from response
-  const parts = result?.candidates?.[0]?.content?.parts || []
-  const imagePart = parts.find((p: any) => p.inline_data?.mime_type?.startsWith('image/'))
+  const imageResponse = await fetch(resultUrl)
+  if (!imageResponse.ok) throw new Error('Failed to download generated poster')
+  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
 
-  if (!imagePart) {
-    throw new Error('Gemini did not return an image in the response')
-  }
-
-  // Save PNG to reports dir
   const filename = `poster-${uuid()}.png`
   const outputPath = path.join(REPORTS_DIR, filename)
-  const imageBuffer = Buffer.from(imagePart.inline_data.data, 'base64')
   fs.writeFileSync(outputPath, imageBuffer)
 
   return `/reports/${filename}`
+}
+
+async function pollFalResult(requestId: string, maxWaitMs = 120000): Promise<string> {
+  const start = Date.now()
+  const statusUrl = `https://queue.fal.run/fal-ai/flux-kontext-pro/requests/${requestId}`
+
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise(r => setTimeout(r, 3000))
+
+    const statusResponse = await fetch(`${statusUrl}/status`, {
+      headers: { 'Authorization': `Key ${FAL_API_KEY}` },
+    })
+
+    if (!statusResponse.ok) continue
+
+    const status = await statusResponse.json() as any
+
+    if (status.status === 'COMPLETED') {
+      const resultResponse = await fetch(statusUrl, {
+        headers: { 'Authorization': `Key ${FAL_API_KEY}` },
+      })
+      const result = await resultResponse.json() as any
+      const imageUrl = result?.images?.[0]?.url
+      if (!imageUrl) throw new Error('fal.ai returned no image URL')
+      return imageUrl
+    }
+
+    if (status.status === 'FAILED') {
+      throw new Error(`fal.ai job failed: ${JSON.stringify(status)}`)
+    }
+  }
+
+  throw new Error('fal.ai job timed out after 2 minutes')
+}
+
+function getDressColor(season: string): string {
+  const s = season.toLowerCase()
+  if (s.includes('soft autumn') || s.includes('otoño suave')) return 'warm terracotta'
+  if (s.includes('autumn') || s.includes('otoño')) return 'deep burgundy'
+  if (s.includes('soft summer') || s.includes('verano suave')) return 'dusty rose'
+  if (s.includes('summer') || s.includes('verano')) return 'soft lavender'
+  if (s.includes('spring') || s.includes('primavera')) return 'warm coral'
+  if (s.includes('winter') || s.includes('invierno')) return 'deep emerald'
+  return 'midnight navy'
 }
