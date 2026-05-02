@@ -1,0 +1,170 @@
+═══════════════════════════════════════════════════════════════
+  MIROIR — GUÍA DE DEPLOYMENT COMPLETA
+  Aplicación de análisis de imagen personal con IA
+═══════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ESTRUCTURA DEL PROYECTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+miroir/
+├── frontend/          → Next.js 14 (React, TypeScript, Tailwind)
+├── backend/           → Express.js (TypeScript, OpenAI, Puppeteer)
+└── DEPLOYMENT.txt     → Este archivo
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 1: PRERREQUISITOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Node.js 20+ instalado
+- npm 10+
+- Cuenta OpenAI con acceso a GPT-4o
+- Cuenta Paddle (paddle.com) — gratuita para empezar
+- Cuenta Vercel o Railway para deploy (opcional)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 2: CONFIGURAR AUDIOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Los archivos de audio van en: frontend/public/audio/
+
+  background.mp3  → Música de fondo (ya incluida)
+  voice.mp3       → Archivo de voz (ya incluida)
+
+IMPORTANTE — Timing de la voz:
+Tu archivo voz.mp3 contiene 2 frases.
+Debes detectar en qué segundo comienza la segunda frase:
+1. Abrí el archivo en cualquier editor de audio (Audacity, gratuito)
+2. Buscá el inicio de "Y no quiero volver a verte mal vestida"
+3. Anotá el timestamp (ej: 5.2 segundos)
+4. En frontend/.env.local: NEXT_PUBLIC_VOICE_DOWNLOAD_START=5.2
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 3: CONFIGURAR PADDLE (PAGOS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Creá cuenta en paddle.com
+2. En el dashboard → Catalog → Products
+   - Crear producto: "Miroir Analysis"
+   - Precio: USD 1.50
+   - Tipo: one-time
+   - Copiar el Price ID (ej: pri_01abc...)
+
+3. En Developer → Authentication
+   - Copiar Client-side token (para frontend)
+
+4. En Developer → Notifications
+   - Crear webhook: https://tu-backend.com/webhooks/paddle
+   - Eventos: transaction.completed
+   - Copiar Webhook secret
+
+5. Para Argentina: Paddle opera como "merchant of record"
+   y acepta Apple Pay y Google Pay globalmente.
+   No necesitás cuenta bancaria Argentina.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 4: EJECUTAR LOCALMENTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── BACKEND ──
+cd backend
+cp .env.example .env
+# Editar .env con tus keys reales
+npm install
+npm run dev
+# Corre en http://localhost:4000
+
+── FRONTEND ──
+cd frontend
+cp .env.example .env.local
+# Editar .env.local con tus valores
+npm install
+npm run dev
+# Corre en http://localhost:3000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 5: VARIABLES DE ENTORNO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FRONTEND (frontend/.env.local):
+  NEXT_PUBLIC_API_URL=https://tu-backend.railway.app
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=client_token_de_paddle
+  NEXT_PUBLIC_PADDLE_PRICE_ID=pri_01...
+  NEXT_PUBLIC_PADDLE_ENV=production
+  NEXT_PUBLIC_VOICE_DOWNLOAD_START=4
+
+BACKEND (backend/.env):
+  PORT=4000
+  NODE_ENV=production
+  FRONTEND_URL=https://tu-app.vercel.app
+  OPENAI_API_KEY=sk-proj-...
+  PADDLE_WEBHOOK_SECRET=whsec_...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 6: DEPLOY EN PRODUCCIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPCIÓN A: Vercel (Frontend) + Railway (Backend) — RECOMENDADO
+
+Frontend → Vercel:
+  1. vercel.com → New Project → importar miroir/frontend
+  2. En Environment Variables: pegar valores del .env.local
+  3. Deploy automático
+
+Backend → Railway:
+  1. railway.app → New Project → Deploy from GitHub → miroir/backend
+  2. En Variables: pegar valores del .env
+  3. Railway genera URL automática
+  4. Copiar esa URL en NEXT_PUBLIC_API_URL del frontend
+
+OPCIÓN B: VPS (DigitalOcean, Linode, etc.)
+  1. Instalar Node 20, PM2, Nginx
+  2. Clonar proyecto
+  3. npm install && npm run build en ambas carpetas
+  4. PM2: pm2 start dist/index.js --name miroir-api
+  5. Nginx como reverse proxy
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 7: DOMINIO PERSONALIZADO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Comprar dominio (ej: miroir.app)
+2. En Vercel → Domains → agregar tu dominio
+3. En Railway → Settings → Domain → agregar subdominio (api.miroir.app)
+4. Actualizar NEXT_PUBLIC_API_URL=https://api.miroir.app
+5. Actualizar FRONTEND_URL=https://miroir.app en el backend
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASO 8: VERIFICAR FLUJO COMPLETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ Abrir la app en mobile
+□ Subir 3 imágenes
+□ Verificar que el modal de pago aparece
+□ Probar pago en sandbox de Paddle
+□ Verificar que el audio se reproduce tras el pago
+□ Esperar análisis (30-60 segundos)
+□ Verificar pantalla de resultado
+□ Descargar PDF y verificar que se abre
+□ Verificar que el segundo audio se reproduce al descargar
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  NOTAS IMPORTANTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• La IA usa GPT-4o con visión. Costo estimado por análisis: ~USD 0.15-0.30
+• Margen por transacción: ~USD 1.00-1.20 después de costos de IA y Paddle
+• Puppeteer necesita Chrome instalado. En Railway ya viene incluido.
+• Los PDF se generan y almacenan en backend/reports/
+  → Agregar limpieza periódica en producción (cron cada 24hs)
+• En producción NODE_ENV=production activa la validación estricta de pagos
+• Los archivos subidos se eliminan automáticamente después del análisis
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SOPORTE TÉCNICO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Stack: Next.js 14 · Express · OpenAI GPT-4o · Puppeteer · Paddle
+Generado con: Miroir Architecture System v1.0
+
+═══════════════════════════════════════════════════════════════

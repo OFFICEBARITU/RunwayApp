@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Montserrat:wght@100;200;300;400&display=swap');
+
+:root {
+  --font-cormorant: 'Cormorant Garamond', serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+  --noir: #080808;
+  --cream: #F5F0E8;
+  --rouge: #C0001A;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--noir);
+  color: var(--cream);
+  font-family: var(--font-montserrat);
+  font-weight: 200;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--rouge);
+  color: var(--cream);
+}
+
+::-webkit-scrollbar {
+  width: 2px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--noir);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rouge);
+}
+
+.font-display {
+  font-family: var(--font-cormorant);
+}
+
+.font-body {
+  font-family: var(--font-montserrat);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-rouge {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192, 0, 26, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(192, 0, 26, 0); }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease forwards;
+}
+
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* Loading shimmer */
+.shimmer {
+  background: linear-gradient(90deg, #161616 25%, #222 50%, #161616 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Upload zone */
+.upload-slot {
+  border: 1px dashed rgba(245, 240, 232, 0.2);
+  transition: all 0.3s ease;
+}
+
+.upload-slot:hover, .upload-slot.active {
+  border-color: var(--rouge);
+  background: rgba(192, 0, 26, 0.05);
+}
+
+.upload-slot.filled {
+  border-style: solid;
+  border-color: rgba(245, 240, 232, 0.3);
+}
+
+/* Modal */
+.modal-backdrop {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Pay buttons */
+.pay-btn-apple {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-montserrat);
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+}
+
+.pay-btn-apple:hover {
+  background: #e8e8e8;
+  transform: translateY(-1px);
+}
+
+.pay-btn-google {
+  background: transparent;
+  color: var(--cream);
+  border: 1px solid rgba(245, 240, 232, 0.2);
+  font-family: var(--font-montserrat);
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+}
+
+.pay-btn-google:hover {
+  border-color: rgba(245, 240, 232, 0.5);
+  transform: translateY(-1px);
+}
+
+/* CTA button */
+.cta-primary {
+  background: var(--cream);
+  color: var(--noir);
+  font-family: var(--font-montserrat);
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  font-size: 10px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  padding: 16px 32px;
+}
+
+.cta-primary:hover {
+  background: var(--rouge);
+  color: var(--cream);
+}
+
+.cta-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Line dividers */
+.line-editorial {
+  width: 40px;
+  height: 1px;
+  background: var(--rouge);
+}
+
+/* Audio toggle */
+.audio-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(245, 240, 232, 0.2);
+  background: rgba(8, 8, 8, 0.8);
+  color: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+  border-radius: 0;
+}
+
+.audio-btn:hover {
+  border-color: var(--rouge);
+  color: var(--rouge);
+}
+
+/* Lang selector */
+.lang-btn {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 232, 0.35);
+  cursor: pointer;
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+  font-family: var(--font-montserrat);
+  font-weight: 300;
+}
+
+.lang-btn:hover, .lang-btn.active {
+  color: var(--cream);
+}
+
+.lang-btn.active {
+  color: var(--rouge);
+}
