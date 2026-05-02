@@ -4,14 +4,26 @@ import { useEffect, useState } from 'react'
 interface Props {
   t: Record<string, string | string[]>
   onDownload: () => void
+  posterUrl?: string | null
 }
 
-export default function ResultScreen({ t, onDownload }: Props) {
+export default function ResultScreen({ t, onDownload, posterUrl }: Props) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     setTimeout(() => setVisible(true), 100)
   }, [])
+
+  const handlePosterDownload = () => {
+    if (!posterUrl) return
+    const a = document.createElement('a')
+    a.href = posterUrl
+    a.download = 'runway-poster.png'
+    a.target = '_blank'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
 
   return (
     <div
@@ -74,6 +86,7 @@ export default function ResultScreen({ t, onDownload }: Props) {
 
         <div style={{ width: '32px', height: '1px', background: 'var(--rouge)', margin: '20px auto 28px' }} />
 
+        {/* PDF Download — primary */}
         <button
           onClick={onDownload}
           style={{
@@ -96,6 +109,32 @@ export default function ResultScreen({ t, onDownload }: Props) {
         >
           {String(t.downloadBtn)}
         </button>
+
+        {/* Poster Download — secondary, only if posterUrl exists */}
+        {posterUrl && (
+          <button
+            onClick={handlePosterDownload}
+            style={{
+              background: 'transparent',
+              color: 'var(--cream)',
+              border: '1px solid rgba(245,240,232,0.2)',
+              padding: '14px 32px',
+              width: '100%',
+              fontFamily: 'var(--font-montserrat)',
+              fontSize: '9px',
+              fontWeight: 300,
+              letterSpacing: '0.4em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              marginBottom: '10px',
+              transition: 'border-color 0.2s ease, color 0.2s ease',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--rouge)', e.currentTarget.style.color = 'var(--rouge)')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(245,240,232,0.2)', e.currentTarget.style.color = 'var(--cream)')}
+          >
+            Download Your Poster
+          </button>
+        )}
 
         <p style={{ fontSize: '7.5px', letterSpacing: '0.2em', color: 'rgba(245,240,232,0.2)', textTransform: 'uppercase' }}>
           {String(t.downloadHint)}
