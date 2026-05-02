@@ -1391,9 +1391,10 @@ export async function generatePDF(data: {
   const filename = `report-${uuid()}.pdf`
   const outputPath = path.join(REPORTS_DIR, filename)
 
-  const isProduction = process.env.NODE_ENV === 'production'
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined
   const browser = await puppeteer.launch({
     headless: true,
+    executablePath,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -1401,9 +1402,6 @@ export async function generatePDF(data: {
       '--disable-gpu',
       '--single-process',
     ],
-    ...(isProduction && {
-      executablePath: '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome'
-    })
   })
 
   try {
