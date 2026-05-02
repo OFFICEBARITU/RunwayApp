@@ -7,6 +7,7 @@ import dotenv from 'dotenv'
 import { analyzeRouter } from './routes/analyze'
 import { webhookRouter } from './routes/webhook'
 import { reportRouter } from './routes/report'
+import { paymentStatusRouter } from './routes/paymentStatus'
 
 dotenv.config()
 
@@ -40,6 +41,7 @@ app.use('/reports', express.static(path.join(__dirname, '../reports')))
 app.use('/api/analyze', analyzeRouter)
 app.use('/webhooks', webhookRouter)
 app.use('/api/report', reportRouter)
+app.use('/api/payment-status', paymentStatusRouter)
 
 // Health check
 app.get('/health', (_: any, res: any) => res.json({ status: 'ok', service: 'Runway API' }))

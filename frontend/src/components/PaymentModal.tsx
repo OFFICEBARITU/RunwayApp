@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Props {
   t: Record<string, string | string[]>
@@ -7,42 +7,47 @@ interface Props {
   onClose: () => void
 }
 
-declare global {
-  interface Window {
-    LemonSqueezy?: any
-    createLemonSqueezy?: any
-  }
-}
-
 export default function PaymentModal({ t, onSuccess, onClose }: Props) {
-  const [status, setStatus] = useState<'idle' | 'processing'>('idle')
+  const [status, setStatus] = useState<'idle' | 'waiting' | 'processing'>('idle')
+  const pollRef = useRef<NodeJS.Timeout | null>(null)
+  const sessionRef = useRef<string>('')
+
   const CHECKOUT_URL = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
-  const isDev = !CHECKOUT_URL || CHECKOUT_URL === 'placeholder'
+  const API = process.env.NEXT_PUBLIC_API_URL || ''
+
+  // Start polling after payment button clicked
+  const startPolling = (sessionId: string) => {
+    sessionRef.current = sessionId
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/api/payment-status?session=${sessionId}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.validated) {
+            clearInterval(pollRef.current!)
+            setStatus('processing')
+            onSuccess(sessionId)
+          }
+        }
+      } catch {}
+    }, 3000)
+
+    // Stop polling after 10 minutes
+    setTimeout(() => clearInterval(pollRef.current!), 600000)
+  }
 
   useEffect(() => {
-    if (isDev) return
-    // Load Lemon Squeezy overlay script
-    const script = document.createElement('script')
-    script.src = 'https://assets.lemonsqueezy.com/lemon.js'
-    script.defer = true
-    script.onload = () => {
-      if (window.createLemonSqueezy) window.createLemonSqueezy()
-    }
-    document.head.appendChild(script)
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [])
 
-    // Listen for successful payment
-    window.addEventListener('LemonSqueezy.Order.Created', (e: any) => {
-      const orderId = e?.detail?.order?.data?.id
-      if (orderId) {
-        setStatus('processing')
-        onSuccess(String(orderId))
-      }
-    })
-  }, [isDev, onSuccess])
+  const handlePayClick = () => {
+    const sessionId = 'ls_' + Date.now()
+    setStatus('waiting')
+    startPolling(sessionId)
 
-  const handleDevPay = () => {
-    setStatus('processing')
-    setTimeout(() => onSuccess('dev_tx_' + String(new Date().getTime())), 1200)
+    // Open Lemon Squeezy with session in URL
+    const url = `${CHECKOUT_URL}?checkout[custom][session_id]=${sessionId}`
+    window.open(url, '_blank', 'width=500,height=700')
   }
 
   return (
@@ -79,51 +84,29 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
             <div style={{ width: '32px', height: '32px', border: '1px solid #C0001A', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
             <p style={{ fontSize: '9px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.5)' }}>{String(t.processing)}</p>
           </div>
-        ) : isDev ? (
-          <>
-            <div style={{ border: '1px solid rgba(192,0,26,0.3)', padding: '8px 14px', marginBottom: '16px', background: 'rgba(192,0,26,0.05)' }}>
-              <p style={{ fontSize: '8px', color: 'rgba(192,0,26,0.8)', letterSpacing: '0.1em', textAlign: 'center' }}>DEV MODE — No real payment required</p>
-            </div>
-            <button onClick={handleDevPay} style={{ width: '100%', padding: '14px', fontSize: '11px', marginBottom: '10px', cursor: 'pointer', fontWeight: 300, letterSpacing: '0.1em', background: '#fff', color: '#000', border: 'none' }}>
-               {String(t.applePay)}
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(245,240,232,0.08)' }} />
-              <span style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.2)', textTransform: 'uppercase' }}>{String(t.orDivider)}</span>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(245,240,232,0.08)' }} />
-            </div>
-            <button onClick={handleDevPay} style={{ width: '100%', padding: '14px', fontSize: '11px', marginTop: '4px', cursor: 'pointer', fontWeight: 300, letterSpacing: '0.1em', background: 'transparent', color: 'rgba(245,240,232,0.6)', border: '0.5px solid rgba(245,240,232,0.18)' }}>
-               {String(t.googlePay)}
-            </button>
-          </>
+        ) : status === 'waiting' ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ width: '32px', height: '32px', border: '1px solid rgba(245,240,232,0.3)', borderTopColor: '#C0001A', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+            <p style={{ fontSize: '9px', letterSpacing: '0.2em', color: 'rgba(245,240,232,0.5)', marginBottom: '16px' }}>Waiting for payment confirmation...</p>
+            <p style={{ fontSize: '8px', color: 'rgba(245,240,232,0.3)', letterSpacing: '0.1em' }}>Complete your payment in the new window.<br/>This page will update automatically.</p>
+          </div>
         ) : (
           <>
-            {/* Lemon Squeezy overlay checkout */}
-            <a
-              href={CHECKOUT_URL}
-              className="lemonsqueezy-button"
-              style={{ display: 'block', width: '100%', padding: '14px', fontSize: '11px', marginBottom: '10px', cursor: 'pointer', fontWeight: 300, letterSpacing: '0.1em', background: '#fff', color: '#000', border: 'none', textAlign: 'center', textDecoration: 'none' }}
-            >
+            <button onClick={handlePayClick} style={{ width: '100%', padding: '14px', fontSize: '11px', marginBottom: '10px', cursor: 'pointer', fontWeight: 300, letterSpacing: '0.1em', background: '#fff', color: '#000', border: 'none' }}>
                {String(t.applePay)}
-            </a>
+            </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
               <div style={{ flex: 1, height: '1px', background: 'rgba(245,240,232,0.08)' }} />
               <span style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.2)', textTransform: 'uppercase' }}>{String(t.orDivider)}</span>
               <div style={{ flex: 1, height: '1px', background: 'rgba(245,240,232,0.08)' }} />
             </div>
-            <a
-              href={CHECKOUT_URL}
-              className="lemonsqueezy-button"
-              style={{ display: 'block', width: '100%', padding: '14px', fontSize: '11px', marginTop: '4px', cursor: 'pointer', fontWeight: 300, letterSpacing: '0.1em', background: 'transparent', color: 'rgba(245,240,232,0.6)', border: '0.5px solid rgba(245,240,232,0.18)', textAlign: 'center', textDecoration: 'none' }}
-            >
+            <button onClick={handlePayClick} style={{ width: '100%', padding: '14px', fontSize: '11px', marginTop: '4px', cursor: 'pointer', fontWeight: 300, letterSpacing: '0.1em', background: 'transparent', color: 'rgba(245,240,232,0.6)', border: '0.5px solid rgba(245,240,232,0.18)' }}>
                {String(t.googlePay)}
-            </a>
+            </button>
           </>
         )}
 
-        <p style={{ fontSize: '7px', color: 'rgba(245,240,232,0.15)', textAlign: 'center', marginTop: '20px', letterSpacing: '0.08em' }}>
-          🔒 Secured by Lemon Squeezy · Encrypted payment
-        </p>
+        <p style={{ fontSize: '7px', color: 'rgba(245,240,232,0.15)', textAlign: 'center', marginTop: '20px', letterSpacing: '0.08em' }}>🔒 Secured by Lemon Squeezy · Encrypted payment</p>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
