@@ -5,6 +5,7 @@ import fs from 'fs'
 import { v4 as uuid } from 'uuid'
 import { runAnalysis } from '../services/analysisService'
 import { generatePDF } from '../services/pdfService'
+import { isRecentPaymentValidated, consumeValidatedPayment } from './paymentStatus'
 
 export const analyzeRouter = Router()
 
@@ -57,16 +58,19 @@ analyzeRouter.post(
         return res.status(402).json({ error: 'Payment required.' })
       }
 
-      if (!validatedPayments.has(transactionId)) {
-        // For sandbox/dev: allow if env flag is set
+      // Check both: direct orderId match OR recent payment from paymentStatus
+      const directMatch = validatedPayments.has(transactionId)
+      const recentMatch = isRecentPaymentValidated(transactionId)
+      
+      if (!directMatch && !recentMatch) {
         if (process.env.NODE_ENV === 'production') {
           return res.status(402).json({ error: 'Payment not validated.' })
         }
-        // In development, log warning but continue
-        console.warn(`[DEV] Payment ${transactionId} not in validated set — bypassing for dev`)
+        console.warn(`[DEV] Payment ${transactionId} not validated — bypassing for dev`)
       }
       // Remove used payment token (one-use)
-      validatedPayments.delete(transactionId)
+      if (directMatch) validatedPayments.delete(transactionId)
+      if (recentMatch) consumeValidatedPayment()
 
       // ── FILE VALIDATION ────────────────────────────────────────
       const files = req.files as Record<string, any[]>

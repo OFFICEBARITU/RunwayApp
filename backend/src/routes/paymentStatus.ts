@@ -28,3 +28,19 @@ paymentStatusRouter.get('/', (req: Request, res: Response) => {
 
   return res.json({ validated, orderId: validated ? lastValidatedOrderId : null })
 })
+
+// Check if any payment was validated recently (within 2 minutes of sessionId timestamp)
+export function isRecentPaymentValidated(sessionId: string): boolean {
+  if (lastValidatedOrderId === '') return false
+  const sessionTimestamp = parseInt(sessionId.replace('ls_', ''))
+  if (isNaN(sessionTimestamp)) return false
+  return Date.now() - sessionTimestamp < 120000
+}
+
+// Consume the last validated payment (one-use)
+export function consumeValidatedPayment(): void {
+  if (lastValidatedOrderId) {
+    validatedPayments.delete(lastValidatedOrderId)
+    lastValidatedOrderId = ''
+  }
+}

@@ -157,7 +157,7 @@ export default function Home() {
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-              {[String(t.slot1), String(t.slot2), String(t.slot3)].map((label, i) => (
+              {[t.slot1, t.slot2, t.slot3].map((label, i) => (
                 <div key={i}>
                   <input
                     ref={fileRefs[i]}
@@ -215,9 +215,9 @@ export default function Home() {
       <section className="relative z-10 px-0 pb-16" style={{ borderTop: '1px solid rgba(245,240,232,0.06)', marginTop: '24px' }}>
         <div className="max-w-md mx-auto">
           {[
-            { num: '01', title: String(t.feat1Title), desc: String(t.feat1Desc) },
-            { num: '02', title: String(t.feat2Title), desc: String(t.feat2Desc) },
-            { num: '03', title: String(t.feat3Title), desc: String(t.feat3Desc) },
+            { num: '01', title: t.feat1Title, desc: t.feat1Desc },
+            { num: '02', title: t.feat2Title, desc: t.feat2Desc },
+            { num: '03', title: t.feat3Title, desc: t.feat3Desc },
           ].map((f, i) => (
             <div
               key={i}
