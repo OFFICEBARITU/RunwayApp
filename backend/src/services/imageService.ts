@@ -81,7 +81,7 @@ STRICT RULES:
     throw new Error(`Gemini image generation failed: ${errText}`)
   }
 
-  const result = await response.json()
+  const result = await response.json() as any
 
   // Extract image from response
   const parts = result?.candidates?.[0]?.content?.parts || []
