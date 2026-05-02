@@ -3,7 +3,9 @@ import path from 'path'
 import { v4 as uuid } from 'uuid'
 
 const REPORTS_DIR = path.join(__dirname, '../../reports')
-const BASEIMAGE_PATH = path.join(__dirname, '../assets/BASEIMAGE.png')
+// src/assets is not compiled by tsc — resolve from project root
+const PROJECT_ROOT = path.resolve(__dirname, '../../')
+const BASEIMAGE_PATH = path.join(PROJECT_ROOT, 'src/assets/BASEIMAGE.png')
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
 export async function generatePosterImage(data: {
