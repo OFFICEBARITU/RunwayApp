@@ -5,6 +5,7 @@ import fs from 'fs'
 import { v4 as uuid } from 'uuid'
 import { runAnalysis } from '../services/analysisService'
 import { generatePDF } from '../services/pdfService'
+import { generatePosterImage } from '../services/imageService'
 import { isRecentPaymentValidated, consumeValidatedPayment } from './paymentStatus'
 
 export const analyzeRouter = Router()
@@ -88,16 +89,27 @@ analyzeRouter.post(
       // ── AI ANALYSIS ────────────────────────────────────────────
       const analysisResult = await runAnalysis(imagePaths)
 
-      // ── PDF GENERATION ─────────────────────────────────────────
-      const reportUrl = await generatePDF({
-        ...analysisResult,
-        lang,
+      // ── PDF + POSTER IN PARALLEL ───────────────────────────────
+      const [reportUrl, posterUrl] = await Promise.allSettled([
+        generatePDF({ ...analysisResult, lang }),
+        generatePosterImage({
+          imageBase64: analysisResult.imageBase64,
+          colorimetry: analysisResult.colorimetry,
+          hairstyle: analysisResult.hairstyle,
+        }),
+      ]).then(([pdfResult, posterResult]) => {
+        const pdf = pdfResult.status === 'fulfilled' ? pdfResult.value : null
+        const poster = posterResult.status === 'fulfilled' ? posterResult.value : null
+        if (posterResult.status === 'rejected') {
+          console.error('[Poster Error]', posterResult.reason?.message)
+        }
+        return [pdf, poster]
       })
 
       // Cleanup temp images
       imagePaths.forEach(p => fs.unlink(p, () => {}))
 
-      return res.json({ success: true, reportUrl })
+      return res.json({ success: true, reportUrl, posterUrl })
 
     } catch (err: any) {
       // Cleanup on error
