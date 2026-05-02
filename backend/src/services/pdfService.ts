@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer'
+import chromium from '@sparticuz/chromium'
+import puppeteer from 'puppeteer-core'
 import path from 'path'
 import fs from 'fs'
 import { v4 as uuid } from 'uuid'
@@ -1391,17 +1392,10 @@ export async function generatePDF(data: {
   const filename = `report-${uuid()}.pdf`
   const outputPath = path.join(REPORTS_DIR, filename)
 
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined
   const browser = await puppeteer.launch({
-    headless: true,
-    executablePath,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-    ],
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
   })
 
   try {
