@@ -4,13 +4,13 @@ import path from 'path'
 
 export const paymentStatusRouter = Router()
 
-// Persist payment state to disk so it survives Render spin-down/spin-up
 const STATE_FILE = path.join(__dirname, '../../payment-state.json')
 
 interface PaymentState {
   orderId: string
   sessionId?: string
   timestamp: number
+  consumed: boolean
 }
 
 function readState(): PaymentState | null {
@@ -18,8 +18,8 @@ function readState(): PaymentState | null {
     if (!fs.existsSync(STATE_FILE)) return null
     const raw = fs.readFileSync(STATE_FILE, 'utf8')
     const state: PaymentState = JSON.parse(raw)
-    // Expire after 10 minutes
-    if (Date.now() - state.timestamp > 10 * 60 * 1000) {
+    // Expire after 30 minutes
+    if (Date.now() - state.timestamp > 30 * 60 * 1000) {
       fs.unlinkSync(STATE_FILE)
       return null
     }
@@ -31,10 +31,16 @@ function readState(): PaymentState | null {
 
 function writeState(orderId: string, sessionId?: string): void {
   try {
-    const state: PaymentState = { orderId, sessionId, timestamp: Date.now() }
+    const state: PaymentState = {
+      orderId,
+      sessionId,
+      timestamp: Date.now(),
+      consumed: false
+    }
     fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8')
+    console.log(`[PaymentStatus] Written to disk: ${orderId}`)
   } catch (e) {
-    console.error('[PaymentState] Write error:', e)
+    console.error('[PaymentStatus] Write error:', e)
   }
 }
 
@@ -46,7 +52,6 @@ function clearState(): void {
 
 export function markPaymentValidated(orderId: string, sessionId?: string) {
   writeState(orderId, sessionId)
-  console.log(`[PaymentStatus] Saved to disk: ${orderId} | session: ${sessionId || 'none'}`)
 }
 
 // GET /api/payment-status?session=xxx
@@ -55,26 +60,47 @@ paymentStatusRouter.get('/', (req: Request, res: Response) => {
   if (!sessionId) return res.status(400).json({ error: 'Missing session' })
 
   const state = readState()
-  if (!state) return res.json({ validated: false, orderId: null })
+  if (!state || state.consumed) {
+    return res.json({ validated: false, orderId: null })
+  }
 
-  // Match by sessionId directly OR by time-window (2 min from session creation)
-  const sessionTimestamp = parseInt(sessionId.replace('ls_', '').replace('gm_', ''))
-  const timeMatch = !isNaN(sessionTimestamp) && (Date.now() - sessionTimestamp < 120000)
+  // Match by direct sessionId OR by time window (10 min)
+  const sessionTimestamp = parseInt(
+    sessionId.replace('ls_', '').replace('gm_', '')
+  )
+  const timeMatch =
+    !isNaN(sessionTimestamp) &&
+    Date.now() - sessionTimestamp < 10 * 60 * 1000 // 10 min window
   const directMatch = state.sessionId === sessionId
 
   const validated = directMatch || timeMatch
+
+  if (validated) {
+    console.log(`[PaymentStatus] Validated for session: ${sessionId}`)
+  }
 
   return res.json({ validated, orderId: validated ? state.orderId : null })
 })
 
 export function isRecentPaymentValidated(sessionId: string): boolean {
   const state = readState()
-  if (!state) return false
-  const sessionTimestamp = parseInt(sessionId.replace('ls_', '').replace('gm_', ''))
-  if (isNaN(sessionTimestamp)) return false
-  return Date.now() - sessionTimestamp < 120000
+  if (!state || state.consumed) return false
+
+  const sessionTimestamp = parseInt(
+    sessionId.replace('ls_', '').replace('gm_', '')
+  )
+  // 10 minute window — enough for slow payers
+  if (!isNaN(sessionTimestamp)) {
+    return Date.now() - sessionTimestamp < 10 * 60 * 1000
+  }
+  return state.sessionId === sessionId
 }
 
 export function consumeValidatedPayment(): void {
-  clearState()
+  const state = readState()
+  if (state) {
+    state.consumed = true
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8')
+    console.log(`[PaymentStatus] Consumed: ${state.orderId}`)
+  }
 }
