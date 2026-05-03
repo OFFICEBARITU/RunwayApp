@@ -69,9 +69,8 @@ analyzeRouter.post(
         }
         console.warn(`[DEV] Payment ${transactionId} not validated — bypassing for dev`)
       }
-      // Remove used payment token (one-use)
-      if (directMatch) validatedPayments.delete(transactionId)
-      if (recentMatch) consumeValidatedPayment()
+      // Log validation result
+      console.log(`[Analyze] Payment check — direct:${directMatch} recent:${recentMatch} txId:${transactionId}`)
 
       // ── FILE VALIDATION ────────────────────────────────────────
       const files = req.files as Record<string, any[]>
@@ -109,6 +108,11 @@ analyzeRouter.post(
       // Cleanup temp images
       imagePaths.forEach(p => fs.unlink(p, () => {}))
 
+      // Consume payment AFTER successful generation
+      if (directMatch) validatedPayments.delete(transactionId)
+      if (recentMatch) consumeValidatedPayment()
+
+      console.log(`[Analyze] Complete — pdf:${!!reportUrl} poster:${!!posterUrl}`)
       return res.json({ success: true, reportUrl, posterUrl })
 
     } catch (err: any) {

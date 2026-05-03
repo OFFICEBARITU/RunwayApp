@@ -10,31 +10,45 @@ interface Props {
 export default function PaymentModal({ t, onSuccess, onClose }: Props) {
   const [status, setStatus] = useState<'idle' | 'waiting' | 'processing'>('idle')
   const pollRef = useRef<NodeJS.Timeout | null>(null)
-  const sessionRef = useRef<string>('')
+  const successFiredRef = useRef(false) // ← GUARD ATÓMICO
 
   const CHECKOUT_URL = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
   const API = process.env.NEXT_PUBLIC_API_URL || ''
 
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
   const startPolling = (sessionId: string) => {
-    sessionRef.current = sessionId
+    successFiredRef.current = false
+
     pollRef.current = setInterval(async () => {
+      // GUARD: si ya disparó success, detener inmediatamente
+      if (successFiredRef.current) { stopPolling(); return }
+
       try {
         const res = await fetch(`${API}/api/payment-status?session=${sessionId}`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.validated) {
-            clearInterval(pollRef.current!)
-            setStatus('processing')
-            onSuccess(sessionId)
-          }
+        if (!res.ok) return
+        const data = await res.json()
+
+        if (data.validated && !successFiredRef.current) {
+          successFiredRef.current = true // ← ATÓMICO: marca ANTES de todo
+          stopPolling()
+          setStatus('processing')
+          // Pequeño delay para asegurar que el interval está detenido
+          setTimeout(() => onSuccess(sessionId), 100)
         }
       } catch {}
     }, 3000)
-    setTimeout(() => clearInterval(pollRef.current!), 600000)
+
+    setTimeout(() => stopPolling(), 600000)
   }
 
   useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+    return () => stopPolling()
   }, [])
 
   const handlePayClick = () => {

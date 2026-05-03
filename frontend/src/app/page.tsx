@@ -16,6 +16,7 @@ export default function Home() {
   const [previews, setPreviews] = useState<(string | null)[]>([null, null, null])
   const [error, setError] = useState('')
   const [reportUrl, setReportUrl] = useState('')
+  const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState('')
   const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
   const t = translations[lang]
@@ -69,6 +70,7 @@ export default function Home() {
       if (!res.ok) throw new Error('Analysis failed')
       const data = await res.json()
       setReportUrl(data.reportUrl)
+      setPosterUrl(data.posterUrl || null)
       setAppState('result')
     } catch {
       setError(String(t.errorPayment))
@@ -263,7 +265,7 @@ export default function Home() {
       )}
 
       {appState === 'result' && (
-        <ResultScreen t={t} onDownload={handleDownload} />
+        <ResultScreen t={t} onDownload={handleDownload} posterUrl={posterUrl} />
       )}
 
       <AudioToggle t={t} enabled={audio.bgEnabled} onToggle={audio.toggleBackground} />
