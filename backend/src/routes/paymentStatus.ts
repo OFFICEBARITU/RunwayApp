@@ -8,9 +8,8 @@ const STATE_FILE = path.join(__dirname, '../../payment-state.json')
 
 interface PaymentState {
   orderId: string
-  sessionId?: string
+  sessionId: string
   timestamp: number
-  consumed: boolean
 }
 
 function readState(): PaymentState | null {
@@ -29,77 +28,54 @@ function readState(): PaymentState | null {
   }
 }
 
-function writeState(orderId: string, sessionId?: string): void {
+export function markPaymentValidated(orderId: string, sessionId?: string) {
   try {
     const state: PaymentState = {
       orderId,
-      sessionId,
+      sessionId: sessionId || orderId,
       timestamp: Date.now(),
-      consumed: false
     }
     fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8')
-    console.log(`[PaymentStatus] Written to disk: ${orderId}`)
+    console.log(`[PaymentStatus] Written: orderId=${orderId} sessionId=${sessionId}`)
   } catch (e) {
     console.error('[PaymentStatus] Write error:', e)
   }
 }
 
-function clearState(): void {
-  try {
-    if (fs.existsSync(STATE_FILE)) fs.unlinkSync(STATE_FILE)
-  } catch {}
-}
-
-export function markPaymentValidated(orderId: string, sessionId?: string) {
-  writeState(orderId, sessionId)
-}
-
 // GET /api/payment-status?session=xxx
+// SOLO LEE — no modifica estado
 paymentStatusRouter.get('/', (req: Request, res: Response) => {
   const sessionId = req.query.session as string
   if (!sessionId) return res.status(400).json({ error: 'Missing session' })
 
   const state = readState()
-  if (!state || state.consumed) {
-    return res.json({ validated: false, orderId: null })
-  }
+  if (!state) return res.json({ validated: false })
 
-  // Match by direct sessionId OR by time window (10 min)
-  const sessionTimestamp = parseInt(
-    sessionId.replace('ls_', '').replace('gm_', '')
-  )
-  const timeMatch =
-    !isNaN(sessionTimestamp) &&
-    Date.now() - sessionTimestamp < 10 * 60 * 1000 // 10 min window
-  const directMatch = state.sessionId === sessionId
-
-  const validated = directMatch || timeMatch
+  const validated = state.sessionId === sessionId
 
   if (validated) {
-    // Lock immediately — stops polling loop at the source
-    state.consumed = true
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8')
-    console.log(`[PaymentStatus] Validated+locked: ${sessionId} orderId:${state.orderId}`)
+    console.log(`[PaymentStatus] Polling validated: ${sessionId}`)
   }
 
   return res.json({ validated, orderId: validated ? state.orderId : null })
 })
 
+// Usado por analyze.ts para validar el pago
 export function isRecentPaymentValidated(sessionId: string): boolean {
-  // Read state regardless of consumed flag — analyze needs to validate even after GET locked it
   const state = readState()
   if (!state) return false
-
-  const sessionTimestamp = parseInt(
-    sessionId.replace('ls_', '').replace('gm_', '')
-  )
-  if (!isNaN(sessionTimestamp)) {
-    return Date.now() - sessionTimestamp < 10 * 60 * 1000
-  }
+  console.log(`[PaymentStatus] Check: sessionId=${sessionId} state.sessionId=${state.sessionId}`)
   return state.sessionId === sessionId
 }
 
+// Llamado SOLO por analyze.ts tras generar PDF+poster exitosamente
 export function consumeValidatedPayment(): void {
-  clearState()
-  console.log(`[PaymentStatus] Cleared after analysis`)
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      fs.unlinkSync(STATE_FILE)
+      console.log('[PaymentStatus] Consumed and cleared')
+    }
+  } catch (e) {
+    console.error('[PaymentStatus] Clear error:', e)
+  }
 }

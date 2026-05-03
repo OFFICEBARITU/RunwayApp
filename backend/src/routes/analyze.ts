@@ -13,7 +13,6 @@ export const analyzeRouter = Router()
 const UPLOADS_DIR = path.join(__dirname, '../../uploads')
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
 
-// Multer config — strict file validation
 const storage = multer.diskStorage({
   destination: UPLOADS_DIR,
   filename: (_, file, cb) => cb(null, `${uuid()}-${Date.now()}${path.extname(file.originalname)}`),
@@ -22,7 +21,7 @@ const storage = multer.diskStorage({
 const fileFilter = (_: any, file: any, cb: multer.FileFilterCallback) => {
   const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp', 'image/tiff', 'image/avif']
   if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/')) cb(null, true)
-  else cb(new Error('Invalid file type. Only JPG, PNG, WEBP allowed.'))
+  else cb(new Error('Invalid file type'))
 }
 
 const upload = multer({
@@ -31,15 +30,8 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 3 },
 })
 
-// Payment session store (in production: use Redis or DB)
-const validatedPayments = new Set<string>()
-
-// Endpoint called by Paddle webhook to register validated payment
-export function registerValidatedPayment(transactionId: string) {
-  validatedPayments.add(transactionId)
-  // Clean up after 1 hour
-  setTimeout(() => validatedPayments.delete(transactionId), 60 * 60 * 1000)
-}
+// Kept only for webhook backward compat — not used for validation
+export function registerValidatedPayment(_transactionId: string) {}
 
 analyzeRouter.post(
   '/',
@@ -54,24 +46,25 @@ analyzeRouter.post(
     try {
       const { transactionId, lang = 'en' } = req.body
 
-      // ── STRICT PAYMENT VALIDATION ──────────────────────────────
+      console.log(`[Analyze] Request — transactionId: ${transactionId}`)
+
       if (!transactionId) {
         return res.status(402).json({ error: 'Payment required.' })
       }
 
-      // Check both: direct orderId match OR recent payment from paymentStatus
-      const directMatch = validatedPayments.has(transactionId)
-      const recentMatch = isRecentPaymentValidated(transactionId)
-      
-      if (!directMatch && !recentMatch) {
+      // Single validation path — sessionId based, disk persisted
+      const isValid = isRecentPaymentValidated(transactionId)
+
+      if (!isValid) {
         if (process.env.NODE_ENV === 'production') {
+          console.error(`[Analyze] Payment NOT valid for sessionId: ${transactionId}`)
           return res.status(402).json({ error: 'Payment not validated.' })
         }
-        console.warn(`[DEV] Payment ${transactionId} not validated — bypassing for dev`)
+        console.warn(`[DEV] Bypassing payment validation for: ${transactionId}`)
       }
-      console.log(`[Analyze] Validation OK — direct:${directMatch} recent:${recentMatch}`)
 
-      // ── FILE VALIDATION ────────────────────────────────────────
+      console.log(`[Analyze] Payment valid — proceeding`)
+
       const files = req.files as Record<string, any[]>
       const img0 = files?.image0?.[0]
       const img1 = files?.image1?.[0]
@@ -84,10 +77,8 @@ analyzeRouter.post(
       const imagePaths = [img0.path, img1.path, img2.path]
       uploadedFiles.push(...imagePaths)
 
-      // ── AI ANALYSIS ────────────────────────────────────────────
       const analysisResult = await runAnalysis(imagePaths)
 
-      // ── PDF + POSTER IN PARALLEL ───────────────────────────────
       const [reportUrl, posterUrl] = await Promise.allSettled([
         generatePDF({ ...analysisResult, lang }),
         generatePosterImage({
@@ -98,24 +89,20 @@ analyzeRouter.post(
       ]).then(([pdfResult, posterResult]) => {
         const pdf = pdfResult.status === 'fulfilled' ? pdfResult.value : null
         const poster = posterResult.status === 'fulfilled' ? posterResult.value : null
-        if (posterResult.status === 'rejected') {
-          console.error('[Poster Error]', posterResult.reason?.message)
-        }
+        if (pdfResult.status === 'rejected') console.error('[PDF Error]', pdfResult.reason?.message)
+        if (posterResult.status === 'rejected') console.error('[Poster Error]', posterResult.reason?.message)
         return [pdf, poster]
       })
 
-      // Cleanup temp images
       imagePaths.forEach(p => fs.unlink(p, () => {}))
 
-      // Consume payment AFTER successful generation
-      if (directMatch) validatedPayments.delete(transactionId)
-      if (recentMatch) consumeValidatedPayment()
+      // Consume AFTER successful generation
+      if (isValid) consumeValidatedPayment()
 
       console.log(`[Analyze] Done — pdf:${!!reportUrl} poster:${!!posterUrl}`)
       return res.json({ success: true, reportUrl, posterUrl })
 
     } catch (err: any) {
-      // Cleanup on error
       uploadedFiles.forEach(p => fs.unlink(p, () => {}))
       console.error('[Analyze Error]', err.message)
       return res.status(500).json({ error: 'Analysis failed. Please try again.' })
