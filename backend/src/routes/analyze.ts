@@ -30,7 +30,6 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 3 },
 })
 
-// Kept only for webhook backward compat — not used for validation
 export function registerValidatedPayment(_transactionId: string) {}
 
 analyzeRouter.post(
@@ -52,12 +51,11 @@ analyzeRouter.post(
         return res.status(402).json({ error: 'Payment required.' })
       }
 
-      // Single validation path — sessionId based, disk persisted
       const isValid = isRecentPaymentValidated(transactionId)
 
       if (!isValid) {
         if (process.env.NODE_ENV === 'production') {
-          console.error(`[Analyze] Payment NOT valid for sessionId: ${transactionId}`)
+          console.error(`[Analyze] Payment NOT valid: ${transactionId}`)
           return res.status(402).json({ error: 'Payment not validated.' })
         }
         console.warn(`[DEV] Bypassing payment validation for: ${transactionId}`)
@@ -96,8 +94,8 @@ analyzeRouter.post(
 
       imagePaths.forEach(p => fs.unlink(p, () => {}))
 
-      // Consume AFTER successful generation
-      if (isValid) consumeValidatedPayment()
+      // Consume AFTER successful generation — pass sessionId
+      if (isValid) consumeValidatedPayment(transactionId)
 
       console.log(`[Analyze] Done — pdf:${!!reportUrl} poster:${!!posterUrl}`)
       return res.json({ success: true, reportUrl, posterUrl })

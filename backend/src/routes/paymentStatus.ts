@@ -4,7 +4,8 @@ import path from 'path'
 
 export const paymentStatusRouter = Router()
 
-const STATE_FILE = path.join(__dirname, '../../payment-state.json')
+const STATE_DIR = path.join(__dirname, '../../payment-state')
+if (!fs.existsSync(STATE_DIR)) fs.mkdirSync(STATE_DIR, { recursive: true })
 
 interface PaymentState {
   orderId: string
@@ -12,14 +13,19 @@ interface PaymentState {
   timestamp: number
 }
 
-function readState(): PaymentState | null {
+function getStatePath(sessionId: string): string {
+  const safe = sessionId.replace(/[^a-zA-Z0-9_-]/g, '_')
+  return path.join(STATE_DIR, `session_${safe}.json`)
+}
+
+function readState(sessionId: string): PaymentState | null {
   try {
-    if (!fs.existsSync(STATE_FILE)) return null
-    const raw = fs.readFileSync(STATE_FILE, 'utf8')
+    const file = getStatePath(sessionId)
+    if (!fs.existsSync(file)) return null
+    const raw = fs.readFileSync(file, 'utf8')
     const state: PaymentState = JSON.parse(raw)
-    // Expire after 30 minutes
     if (Date.now() - state.timestamp > 30 * 60 * 1000) {
-      fs.unlinkSync(STATE_FILE)
+      fs.unlinkSync(file)
       return null
     }
     return state
@@ -30,50 +36,42 @@ function readState(): PaymentState | null {
 
 export function markPaymentValidated(orderId: string, sessionId?: string) {
   try {
-    const state: PaymentState = {
-      orderId,
-      sessionId: sessionId || orderId,
-      timestamp: Date.now(),
-    }
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8')
-    console.log(`[PaymentStatus] Written: orderId=${orderId} sessionId=${sessionId}`)
+    const id = sessionId || orderId
+    const state: PaymentState = { orderId, sessionId: id, timestamp: Date.now() }
+    fs.writeFileSync(getStatePath(id), JSON.stringify(state), 'utf8')
+    console.log(`[PaymentStatus] Written: sessionId=${id} orderId=${orderId}`)
   } catch (e) {
     console.error('[PaymentStatus] Write error:', e)
   }
 }
 
-// GET /api/payment-status?session=xxx
-// SOLO LEE — no modifica estado
+// GET /api/payment-status?session=xxx — read only, never modifies state
 paymentStatusRouter.get('/', (req: Request, res: Response) => {
   const sessionId = req.query.session as string
   if (!sessionId) return res.status(400).json({ error: 'Missing session' })
 
-  const state = readState()
-  if (!state) return res.json({ validated: false })
-
-  const validated = state.sessionId === sessionId
+  const state = readState(sessionId)
+  const validated = !!state
 
   if (validated) {
     console.log(`[PaymentStatus] Polling validated: ${sessionId}`)
   }
 
-  return res.json({ validated, orderId: validated ? state.orderId : null })
+  return res.json({ validated, orderId: state?.orderId || null })
 })
 
-// Usado por analyze.ts para validar el pago
 export function isRecentPaymentValidated(sessionId: string): boolean {
-  const state = readState()
-  if (!state) return false
-  console.log(`[PaymentStatus] Check: sessionId=${sessionId} state.sessionId=${state.sessionId}`)
-  return state.sessionId === sessionId
+  const state = readState(sessionId)
+  console.log(`[PaymentStatus] Validate check: ${sessionId} → ${!!state}`)
+  return !!state
 }
 
-// Llamado SOLO por analyze.ts tras generar PDF+poster exitosamente
-export function consumeValidatedPayment(): void {
+export function consumeValidatedPayment(sessionId: string): void {
   try {
-    if (fs.existsSync(STATE_FILE)) {
-      fs.unlinkSync(STATE_FILE)
-      console.log('[PaymentStatus] Consumed and cleared')
+    const file = getStatePath(sessionId)
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file)
+      console.log(`[PaymentStatus] Consumed: ${sessionId}`)
     }
   } catch (e) {
     console.error('[PaymentStatus] Clear error:', e)
