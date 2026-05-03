@@ -9,6 +9,7 @@ import { posterRouter } from './routes/poster'
 import { webhookRouter } from './routes/webhook'
 import { reportRouter } from './routes/report'
 import { paymentStatusRouter } from './routes/paymentStatus'
+import { jobStatusRouter } from './routes/jobStatus'
 
 dotenv.config()
 
@@ -40,6 +41,7 @@ app.use('/api/poster', posterRouter)
 app.use('/webhooks', webhookRouter)
 app.use('/api/report', reportRouter)
 app.use('/api/payment-status', paymentStatusRouter)
+app.use('/api/job-status', jobStatusRouter)
 
 app.get('/health', (_: any, res: any) => res.json({ status: 'ok', service: 'Runway API' }))
 

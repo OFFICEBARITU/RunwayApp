@@ -5,6 +5,7 @@ import fs from 'fs'
 import { v4 as uuid } from 'uuid'
 import { generatePosterImage } from '../services/imageService'
 import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
+import { createJob, completeJob, failJob } from './jobStatus'
 
 export const posterRouter = Router()
 
@@ -49,15 +50,35 @@ posterRouter.post(
 
       uploadedFiles.push(img0.path)
 
-      const imageBuffer = fs.readFileSync(img0.path)
-      const imageBase64 = [`data:image/jpeg;base64,${imageBuffer.toString('base64')}`]
+      // Create job and respond immediately
+      const jobId = uuid()
+      createJob(jobId)
+      res.json({ success: true, jobId })
 
-      const posterUrl = await generatePosterImage({ imageBase64, colorimetry: null, hairstyle: null })
+      // Process in background
+      setImmediate(async () => {
+        try {
+          console.log(`[FLOW] background poster jobId=${jobId}`)
+          const imageBuffer = fs.readFileSync(img0.path)
+          const imageBase64 = [`data:image/jpeg;base64,${imageBuffer.toString('base64')}`]
 
-      await fs.promises.unlink(img0.path).catch(() => {})
-      if (locked) consumeValidatedPayment(transactionId)
+          const posterUrl = await generatePosterImage({
+            imageBase64,
+            colorimetry: null,
+            hairstyle: null,
+          })
+          console.log(`[FLOW] poster done: ${posterUrl}`)
 
-      return res.json({ success: true, posterUrl })
+          await fs.promises.unlink(img0.path).catch(() => {})
+          if (locked) consumeValidatedPayment(transactionId)
+
+          completeJob(jobId, { posterUrl })
+        } catch (err: any) {
+          await fs.promises.unlink(img0.path).catch(() => {})
+          console.error('[Poster Error]', err.message)
+          failJob(jobId, err.message)
+        }
+      })
 
     } catch (err: any) {
       await Promise.all(uploadedFiles.map(p => fs.promises.unlink(p).catch(() => {})))

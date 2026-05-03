@@ -6,6 +6,7 @@ import { v4 as uuid } from 'uuid'
 import { runAnalysis } from '../services/analysisService'
 import { generatePDF } from '../services/pdfService'
 import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
+import { createJob, completeJob, failJob } from './jobStatus'
 
 export const analyzeRouter = Router()
 
@@ -55,18 +56,34 @@ analyzeRouter.post(
 
       uploadedFiles.push(img0.path)
 
-      const analysisResult = await runAnalysis([img0.path])
+      // Create job and respond immediately — don't wait for processing
+      const jobId = uuid()
+      createJob(jobId)
 
-      console.log('[FLOW] generating PDF...')
-      const reportUrl = await generatePDF({ ...analysisResult, lang })
-      if (!reportUrl) throw new Error('PDF generation failed')
-      console.log(`[FLOW] PDF done: ${reportUrl}`)
+      // Respond immediately with jobId
+      res.json({ success: true, jobId })
 
-      await fs.promises.unlink(img0.path).catch(() => {})
+      // Process in background (after response sent)
+      setImmediate(async () => {
+        try {
+          console.log(`[FLOW] background processing jobId=${jobId}`)
+          const analysisResult = await runAnalysis([img0.path])
 
-      if (locked) consumeValidatedPayment(transactionId)
+          console.log('[FLOW] generating PDF...')
+          const reportUrl = await generatePDF({ ...analysisResult, lang })
+          if (!reportUrl) throw new Error('PDF generation failed')
+          console.log(`[FLOW] PDF done: ${reportUrl}`)
 
-      return res.json({ success: true, reportUrl })
+          await fs.promises.unlink(img0.path).catch(() => {})
+          if (locked) consumeValidatedPayment(transactionId)
+
+          completeJob(jobId, { reportUrl })
+        } catch (err: any) {
+          await fs.promises.unlink(img0.path).catch(() => {})
+          console.error('[Analyze Error]', err.message)
+          failJob(jobId, err.message)
+        }
+      })
 
     } catch (err: any) {
       await Promise.all(uploadedFiles.map(p => fs.promises.unlink(p).catch(() => {})))

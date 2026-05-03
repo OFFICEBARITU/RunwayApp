@@ -70,18 +70,48 @@ export default function Home() {
       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
       const endpoint = product === 'poster' ? `${API}/api/poster` : `${API}/api/analyze`
 
+      // Submit job — backend responds immediately with jobId
       const res = await fetch(endpoint, { method: 'POST', body: formData })
       if (!res.ok) throw new Error('Processing failed')
       const data = await res.json()
 
-      if (product === 'poster') {
-        setPosterUrl(data.posterUrl || null)
-        setReportUrl('')
-      } else {
-        setReportUrl(data.reportUrl || '')
-        setPosterUrl(null)
+      if (!data.jobId) throw new Error('No job ID returned')
+
+      // Poll for job completion
+      const jobId = data.jobId
+      let attempts = 0
+      const maxAttempts = 60 // 5 min max (60 * 5s)
+
+      const pollJob = async (): Promise<void> => {
+        attempts++
+        if (attempts > maxAttempts) throw new Error('Job timed out')
+
+        const statusRes = await fetch(`${API}/api/job-status?id=${jobId}`)
+        const status = await statusRes.json()
+
+        if (status.status === 'done') {
+          if (product === 'poster') {
+            setPosterUrl(status.posterUrl || null)
+            setReportUrl('')
+          } else {
+            setReportUrl(status.reportUrl || '')
+            setPosterUrl(null)
+          }
+          setAppState('result')
+          return
+        }
+
+        if (status.status === 'error') {
+          throw new Error(status.error || 'Processing failed')
+        }
+
+        // Still processing — wait 5s and poll again
+        await new Promise(r => setTimeout(r, 5000))
+        return pollJob()
       }
-      setAppState('result')
+
+      await pollJob()
+
     } catch {
       setError(String(t.errorPayment))
       setAppState('landing')
