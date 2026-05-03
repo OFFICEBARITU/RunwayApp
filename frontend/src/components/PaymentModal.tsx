@@ -45,8 +45,8 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
     setStatus('waiting')
     startPolling(sessionId)
 
-    // Open Gumroad with session in URL
-    const url = `${CHECKOUT_URL}?wanted=true&session_id=${sessionId}`
+    // Open Gumroad checkout
+    const url = `${CHECKOUT_URL}`
     window.open(url, '_blank', 'width=500,height=700')
   }
 
