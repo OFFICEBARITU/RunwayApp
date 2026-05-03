@@ -16,7 +16,6 @@ export default function Home() {
   const [previews, setPreviews] = useState<(string | null)[]>([null, null, null])
   const [error, setError] = useState('')
   const [reportUrl, setReportUrl] = useState('')
-  const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState('')
   const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
   const t = translations[lang]
@@ -70,7 +69,6 @@ export default function Home() {
       if (!res.ok) throw new Error('Analysis failed')
       const data = await res.json()
       setReportUrl(data.reportUrl)
-      setPosterUrl(data.posterUrl || null)
       setAppState('result')
     } catch {
       setError(String(t.errorPayment))
@@ -174,7 +172,7 @@ export default function Home() {
                     onClick={() => fileRefs[i].current?.click()}
                   >
                     {previews[i] ? (
-                      <img src={previews[i]!} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={previews[i]!} alt={String(label)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '18px', color: 'rgba(245,240,232,0.15)', marginBottom: '4px' }}>+</div>
@@ -265,7 +263,7 @@ export default function Home() {
       )}
 
       {appState === 'result' && (
-        <ResultScreen t={t} onDownload={handleDownload} posterUrl={posterUrl} />
+        <ResultScreen t={t} onDownload={handleDownload} />
       )}
 
       <AudioToggle t={t} enabled={audio.bgEnabled} onToggle={audio.toggleBackground} />
