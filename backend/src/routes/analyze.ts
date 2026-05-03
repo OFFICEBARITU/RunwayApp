@@ -69,7 +69,7 @@ analyzeRouter.post(
         }
         console.warn(`[DEV] Payment ${transactionId} not validated — bypassing for dev`)
       }
-      console.log(`[Analyze] Validation OK — direct:${directMatch} recent:${recentMatch} txId:${transactionId}`)
+      console.log(`[Analyze] Validation OK — direct:${directMatch} recent:${recentMatch}`)
 
       // ── FILE VALIDATION ────────────────────────────────────────
       const files = req.files as Record<string, any[]>
@@ -107,7 +107,7 @@ analyzeRouter.post(
       // Cleanup temp images
       imagePaths.forEach(p => fs.unlink(p, () => {}))
 
-      // Consume AFTER successful generation — prevents burning payment on failure
+      // Consume payment AFTER successful generation
       if (directMatch) validatedPayments.delete(transactionId)
       if (recentMatch) consumeValidatedPayment()
 

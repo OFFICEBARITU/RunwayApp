@@ -76,7 +76,10 @@ paymentStatusRouter.get('/', (req: Request, res: Response) => {
   const validated = directMatch || timeMatch
 
   if (validated) {
-    console.log(`[PaymentStatus] Validated for session: ${sessionId}`)
+    // Lock immediately — stops polling loop at the source
+    state.consumed = true
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8')
+    console.log(`[PaymentStatus] Validated+locked: ${sessionId} orderId:${state.orderId}`)
   }
 
   return res.json({ validated, orderId: validated ? state.orderId : null })
@@ -97,10 +100,6 @@ export function isRecentPaymentValidated(sessionId: string): boolean {
 }
 
 export function consumeValidatedPayment(): void {
-  const state = readState()
-  if (state) {
-    state.consumed = true
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8')
-    console.log(`[PaymentStatus] Consumed: ${state.orderId}`)
-  }
+  clearState()
+  console.log(`[PaymentStatus] Cleared after analysis`)
 }
