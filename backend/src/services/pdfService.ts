@@ -36,13 +36,13 @@ function generateReportHTML(data: {
 <html>
 <head>
 <meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Montserrat:wght@100;200;300;400&display=swap" rel="stylesheet">
+
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   background: #F2EDE4;
   color: #111;
-  font-family: 'Montserrat', sans-serif;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
   font-weight: 200;
   font-size: 10px;
   -webkit-print-color-adjust: exact;
@@ -86,7 +86,7 @@ body {
 .header-text { flex: 1; }
 
 .brand {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 10px;
   letter-spacing: 0.55em;
   text-transform: uppercase;
@@ -95,7 +95,7 @@ body {
 }
 
 .header h1 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 22px;
   font-style: italic;
   font-weight: 300;
@@ -325,7 +325,7 @@ body {
 }
 
 .ut-value {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 16px;
   font-style: italic;
   color: #F2EDE4;
@@ -634,7 +634,7 @@ body {
 }
 
 .style-badge-value {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 13px;
   font-style: italic;
   color: #F2EDE4;
@@ -755,7 +755,7 @@ body {
 }
 
 .editorial-quote {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 13px;
   font-style: italic;
   font-weight: 300;
@@ -770,7 +770,7 @@ body {
 }
 
 .confidence-num {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 22px;
   font-weight: 300;
   color: #C0001A;
@@ -918,7 +918,7 @@ body {
     </div>
     <div>
       <div class="brand">Runway</div>
-      <h2 style="font-family:'Cormorant Garamond',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin-bottom:5px;">Análisis<br>de Peinados</h2>
+      <h2 style="font-family:'Georgia',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin-bottom:5px;">Análisis<br>de Peinados</h2>
       <p class="section-label">Asesor de Imagen Premium</p>
     </div>
   </div>
@@ -1018,7 +1018,7 @@ body {
   <div class="style-header">
     <div>
       <div class="brand">Runway</div>
-      <h2 style="font-family:'Cormorant Garamond',serif;font-size:22px;font-style:italic;font-weight:300;color:#F2EDE4;margin-bottom:5px;">Estilo<br>Personal</h2>
+      <h2 style="font-family:'Georgia',serif;font-size:22px;font-style:italic;font-weight:300;color:#F2EDE4;margin-bottom:5px;">Estilo<br>Personal</h2>
       <p class="section-label">Guía editorial de imagen</p>
     </div>
     <img src="${imgs[1] || imgs[0]}" style="width:72px;height:88px;object-fit:cover;object-position:center top;filter:grayscale(20%);" alt="Style" />
@@ -1035,7 +1035,7 @@ body {
       ].map(b => `
         <div style="border:1px solid rgba(242,237,228,0.1);padding:4px 8px;text-align:center;">
           <div style="font-size:5.5px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(242,237,228,0.3);margin-bottom:1px;">${b.l}</div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:12px;font-style:italic;color:#F2EDE4;">${b.v}</div>
+          <div style="font-family:'Georgia',serif;font-size:12px;font-style:italic;color:#F2EDE4;">${b.v}</div>
         </div>
       `).join('')}
     </div>
@@ -1134,7 +1134,7 @@ body {
 
   <div style="background:#111;padding:14px 16px;border-bottom:0.5px solid rgba(242,237,228,0.06);">
     <div class="brand">Runway</div>
-    <h2 style="font-family:'Cormorant Garamond',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin:4px 0 2px;">Accesorios<br>& Maquillaje</h2>
+    <h2 style="font-family:'Georgia',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin:4px 0 2px;">Accesorios<br>& Maquillaje</h2>
     <p style="font-size:6px;letter-spacing:0.38em;text-transform:uppercase;color:rgba(242,237,228,0.3);">Guía editorial completa</p>
   </div>
 
@@ -1195,7 +1195,7 @@ body {
 
   <!-- Editorial footer -->
   <div style="padding:12px 16px;background:#080808;border-top:0.5px solid rgba(242,237,228,0.06);">
-    <p style="font-family:'Cormorant Garamond',serif;font-size:12px;font-style:italic;color:rgba(242,237,228,0.6);line-height:1.4;">"${c.editorialNote || 'Dress with intention. Always.'}"</p>
+    <p style="font-family:'Georgia',serif;font-size:12px;font-style:italic;color:rgba(242,237,228,0.6);line-height:1.4;">"${c.editorialNote || 'Dress with intention. Always.'}"</p>
     <p style="font-size:7px;letter-spacing:0.4em;text-transform:uppercase;color:rgba(192,0,26,0.7);margin-top:6px;">${c.runwayVerdict || "That's all."}</p>
   </div>
 
@@ -1209,7 +1209,7 @@ body {
 
   <div style="background:#111;padding:14px 16px;border-bottom:0.5px solid rgba(242,237,228,0.06);">
     <div class="brand">Runway</div>
-    <h2 style="font-family:'Cormorant Garamond',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin:4px 0 2px;">Errores<br>& Soluciones</h2>
+    <h2 style="font-family:'Georgia',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin:4px 0 2px;">Errores<br>& Soluciones</h2>
     <p style="font-size:6px;letter-spacing:0.38em;text-transform:uppercase;color:rgba(242,237,228,0.3);">Optimización de imagen personal</p>
   </div>
 
@@ -1264,7 +1264,7 @@ body {
     </div>
     <div style="padding:12px 14px;display:flex;flex-direction:column;justify-content:center;">
       <p style="font-size:6px;letter-spacing:0.4em;text-transform:uppercase;color:rgba(242,237,228,0.3);margin-bottom:6px;">Veredicto editorial</p>
-      <p style="font-family:'Cormorant Garamond',serif;font-size:12px;font-style:italic;color:rgba(242,237,228,0.8);line-height:1.5;">"${h.editorialVerdict || 'Your face tells the whole story.'}"</p>
+      <p style="font-family:'Georgia',serif;font-size:12px;font-style:italic;color:rgba(242,237,228,0.8);line-height:1.5;">"${h.editorialVerdict || 'Your face tells the whole story.'}"</p>
       <div style="width:24px;height:1px;background:#C0001A;margin-top:10px;"></div>
       <p style="font-size:6px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(192,0,26,0.6);margin-top:6px;">Runway · ${c.seasonSubtype || c.season || 'Analysis'}</p>
     </div>
@@ -1282,7 +1282,7 @@ body {
 
   <div style="background:#111;padding:14px 16px;border-bottom:0.5px solid rgba(242,237,228,0.06);">
     <div class="brand">Runway</div>
-    <h2 style="font-family:'Cormorant Garamond',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin:4px 0 2px;">Vestimenta<br>& Outfits</h2>
+    <h2 style="font-family:'Georgia',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin:4px 0 2px;">Vestimenta<br>& Outfits</h2>
     <p style="font-size:6px;letter-spacing:0.38em;text-transform:uppercase;color:rgba(242,237,228,0.3);">Guía visual de prendas · ${c.seasonSubtype || c.season || 'Personal Season'}</p>
   </div>
 
@@ -1365,11 +1365,11 @@ body {
   <!-- Final runway sign-off -->
   <div style="background:#080808;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid rgba(242,237,228,0.06);">
     <div>
-      <p style="font-family:'Cormorant Garamond',serif;font-size:11px;font-style:italic;color:rgba(242,237,228,0.5);line-height:1.5;">Dress the body you have.<br>Color the season you are.</p>
+      <p style="font-family:'Georgia',serif;font-size:11px;font-style:italic;color:rgba(242,237,228,0.5);line-height:1.5;">Dress the body you have.<br>Color the season you are.</p>
       <div style="width:24px;height:1px;background:#C0001A;margin-top:6px;"></div>
     </div>
     <div style="text-align:right;">
-      <div style="font-family:'Cormorant Garamond',serif;font-size:11px;letter-spacing:0.5em;text-transform:uppercase;color:rgba(242,237,228,0.3);">Runway</div>
+      <div style="font-family:'Georgia',serif;font-size:11px;letter-spacing:0.5em;text-transform:uppercase;color:rgba(242,237,228,0.3);">Runway</div>
       <div style="font-size:6px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(192,0,26,0.5);margin-top:3px;">${c.seasonSubtype || c.season} · ${c.confidenceScore || 88}% confidence</div>
     </div>
   </div>
@@ -1401,7 +1401,7 @@ export async function generatePDF(data: {
   try {
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
-    await new Promise(r => setTimeout(r, 800))
+    await new Promise(r => setTimeout(r, 500))
 
     await page.pdf({
       path: outputPath,
