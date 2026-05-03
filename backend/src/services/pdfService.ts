@@ -1387,7 +1387,7 @@ export async function generatePDF(data: {
   imageBase64: string[]
   lang: string
   referenceImages?: { hairstyles: (string|null)[]; outfits: (string|null)[] }
-}): Promise<{ base64: string; filename: string }> {
+}): Promise<string> {
   const html = generateReportHTML(data)
   const filename = `report-${uuid()}.pdf`
   const outputPath = path.join(REPORTS_DIR, filename)
@@ -1403,16 +1403,16 @@ export async function generatePDF(data: {
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await new Promise(r => setTimeout(r, 500))
 
-    const pdfBuffer = await page.pdf({
+    await page.pdf({
+      path: outputPath,
       width: '390px',
       printBackground: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     })
 
     await browser.close()
-    const base64 = Buffer.from(pdfBuffer).toString('base64')
-    console.log(`[PDF] Generated ${Math.round(pdfBuffer.length / 1024)}KB`)
-    return { base64, filename }
+    console.log(`[PDF] Generated: ${filename}`)
+    return `/reports/${filename}`
   } catch (err) {
     await browser.close()
     throw err

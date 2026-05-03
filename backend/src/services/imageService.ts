@@ -21,7 +21,7 @@ export async function generatePosterImage(data: {
   imageBase64: string[]
   colorimetry: any
   hairstyle: any
-}): Promise<{ base64: string; filename: string }> {
+}): Promise<string> {
   const { imageBase64, colorimetry, hairstyle } = data
 
   const gender: string = (hairstyle?.gender || colorimetry?.gender || 'female').toLowerCase()
@@ -99,9 +99,10 @@ export async function generatePosterImage(data: {
     .toBuffer()
 
   const filename = `poster-${uuid()}.jpg`
-  const base64 = finalBuffer.toString('base64')
-  console.log(`[Poster] Generated: ${filename} (${Math.round(finalBuffer.length / 1024)}KB)`)
-  return { base64, filename }
+  const outputPath = path.join(REPORTS_DIR, filename)
+  fs.writeFileSync(outputPath, finalBuffer)
+  console.log(`[Poster] Saved: ${filename} (${Math.round(finalBuffer.length / 1024)}KB)`)
+  return `/reports/${filename}`
 }
 
 async function pollFalResult(requestId: string, maxWaitMs = 180000): Promise<string> {

@@ -19,8 +19,6 @@ export default function Home() {
   const [error, setError] = useState('')
   const [reportUrl, setReportUrl] = useState('')
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
-  const [reportFilename, setReportFilename] = useState('runway-report.pdf')
-  const [posterFilename, setPosterFilename] = useState('runway-poster.jpg')
   const fileRef = useRef<HTMLInputElement>(null)
   const t = translations[lang]
   const audio = useAudio()
@@ -92,17 +90,13 @@ export default function Home() {
 
   const handleDownload = useCallback(() => {
     audio.playVoiceDownload()
-    const url = product === 'poster' ? posterUrl : reportUrl
-    const filename = product === 'poster' ? posterFilename : reportFilename
-    if (!url) return
-    // Download directly from base64 data URL
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-  }, [reportUrl, posterUrl, reportFilename, posterFilename, product, audio])
+    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    if (product === 'poster' && posterUrl) {
+      window.open(`${API}${posterUrl}`, '_blank')
+    } else if (reportUrl) {
+      window.open(`${API}${reportUrl}`, '_blank')
+    }
+  }, [reportUrl, posterUrl, product, audio])
 
   const checkoutUrl = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
 
