@@ -15,7 +15,16 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
   const CHECKOUT_URL = process.env.NEXT_PUBLIC_GUMROAD_CHECKOUT_URL || ''
   const API = process.env.NEXT_PUBLIC_API_URL || ''
 
-  // Start polling after payment button clicked
+  // On mount: check if returning from Gumroad with a pending session
+  useEffect(() => {
+    const pendingSession = sessionStorage.getItem('runway_session')
+    if (pendingSession) {
+      sessionStorage.removeItem('runway_session')
+      setStatus('waiting')
+      startPolling(pendingSession)
+    }
+  }, [])
+
   const startPolling = (sessionId: string) => {
     sessionRef.current = sessionId
     pollRef.current = setInterval(async () => {
@@ -32,7 +41,6 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
       } catch {}
     }, 3000)
 
-    // Stop polling after 10 minutes
     setTimeout(() => clearInterval(pollRef.current!), 600000)
   }
 
@@ -41,13 +49,12 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
   }, [])
 
   const handlePayClick = () => {
-    const sessionId = 'ls_' + Date.now()
+    const sessionId = 'gm_' + Date.now()
+    sessionStorage.setItem('runway_session', sessionId)
     setStatus('waiting')
     startPolling(sessionId)
-
-    // Open Gumroad checkout
-    const url = `${CHECKOUT_URL}`
-    window.open(url, '_blank', 'width=500,height=700')
+    // Open Gumroad in new tab — more reliable than popup
+    window.open(CHECKOUT_URL, '_blank')
   }
 
   return (
@@ -88,7 +95,13 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ width: '32px', height: '32px', border: '1px solid rgba(245,240,232,0.3)', borderTopColor: '#C0001A', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
             <p style={{ fontSize: '9px', letterSpacing: '0.2em', color: 'rgba(245,240,232,0.5)', marginBottom: '16px' }}>Waiting for payment confirmation...</p>
-            <p style={{ fontSize: '8px', color: 'rgba(245,240,232,0.3)', letterSpacing: '0.1em' }}>Complete your payment in the new window.<br/>This page will update automatically.</p>
+            <p style={{ fontSize: '8px', color: 'rgba(245,240,232,0.3)', letterSpacing: '0.1em' }}>Complete your payment in the new tab.<br/>This page will update automatically.</p>
+            <button
+              onClick={handlePayClick}
+              style={{ marginTop: '16px', background: 'none', border: '1px solid rgba(245,240,232,0.2)', color: 'rgba(245,240,232,0.4)', padding: '8px 16px', fontSize: '8px', letterSpacing: '0.2em', cursor: 'pointer' }}
+            >
+              REOPEN PAYMENT PAGE
+            </button>
           </div>
         ) : (
           <>
