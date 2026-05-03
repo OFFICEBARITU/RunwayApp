@@ -315,11 +315,24 @@ function getAnthropicKey(): string {
   return key
 }
 
+async function resizeImage(imagePath: string): Promise<string> {
+  try {
+    const buf = await sharp(imagePath)
+      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 75 })
+      .toBuffer()
+    return buf.toString('base64')
+  } catch {
+    return fs.readFileSync(imagePath).toString('base64')
+  }
+}
+
 async function callClaude(prompt: string, imagePaths: string[]): Promise<string> {
   const key = getAnthropicKey()
-  const imageContent: any[] = imagePaths.map(p => ({
+  const resized = await Promise.all(imagePaths.map(resizeImage))
+  const imageContent: any[] = resized.map(data => ({
     type: 'image',
-    source: { type: 'base64', media_type: getMimeType(p), data: fs.readFileSync(p).toString('base64') },
+    source: { type: 'base64', media_type: 'image/jpeg', data },
   }))
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

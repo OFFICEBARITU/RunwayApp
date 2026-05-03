@@ -18,7 +18,8 @@
     "helmet": "^7.0.0",
     "express-rate-limit": "^7.0.0",
     "uuid": "^9.0.0",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "sharp": "^0.33.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
