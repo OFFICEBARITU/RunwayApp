@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import fs from 'fs'
 import fetch from 'node-fetch'
 
