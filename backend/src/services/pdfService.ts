@@ -1403,15 +1403,18 @@ export async function generatePDF(data: {
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await new Promise(r => setTimeout(r, 500))
 
-    await page.pdf({
-      path: outputPath,
+    const pdfBuffer = await page.pdf({
       width: '390px',
       printBackground: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     })
-  } finally {
-    await browser.close()
-  }
 
-  // removed - base64 returned above
+    await browser.close()
+    const base64 = Buffer.from(pdfBuffer).toString('base64')
+    console.log(`[PDF] Generated ${Math.round(pdfBuffer.length / 1024)}KB`)
+    return { base64, filename }
+  } catch (err) {
+    await browser.close()
+    throw err
+  }
 }
