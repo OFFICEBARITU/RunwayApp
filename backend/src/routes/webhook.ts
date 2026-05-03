@@ -46,9 +46,10 @@ webhookRouter.post('/lemonsqueezy', (req: Request, res: Response) => {
 
       if (orderId && (status === 'paid' || status === 'pending')) {
         registerValidatedPayment(String(orderId))
-        const sessionId = event.data?.attributes?.checkout_data?.custom?.session_id
+        const customData = event.data?.attributes?.checkout_data?.custom
+        const sessionId = customData?.session_id
+        console.log(`[Webhook LS] Payment validated: ${orderId} | sessionId: ${sessionId} | custom: ${JSON.stringify(customData)}`)
         markPaymentValidated(String(orderId), sessionId ? String(sessionId) : undefined)
-        console.log(`[Webhook LS] Payment validated: ${orderId}`)
       }
     }
 

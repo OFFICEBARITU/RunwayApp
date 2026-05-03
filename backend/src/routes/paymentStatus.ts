@@ -43,7 +43,8 @@ function writeState(sessionId: string, state: PaymentState): void {
 
 export function markPaymentValidated(orderId: string, sessionId?: string) {
   try {
-    const id = sessionId || orderId
+    // Use sessionId if valid, otherwise fall back to orderId
+    const id = (sessionId && sessionId !== 'undefined') ? sessionId : orderId
     const state: PaymentState = {
       orderId,
       sessionId: id,
