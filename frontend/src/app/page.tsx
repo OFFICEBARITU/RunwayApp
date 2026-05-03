@@ -8,104 +8,106 @@ import ResultScreen from '@/components/ResultScreen'
 import AudioToggle from '@/components/AudioToggle'
 
 type AppState = 'landing' | 'payment' | 'analyzing' | 'result'
+type ProductType = 'analysis' | 'poster'
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>('en')
   const [appState, setAppState] = useState<AppState>('landing')
-  const [images, setImages] = useState<(File | null)[]>([null, null, null])
-  const [previews, setPreviews] = useState<(string | null)[]>([null, null, null])
+  const [product, setProduct] = useState<ProductType>('analysis')
+  const [image, setImage] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [reportUrl, setReportUrl] = useState('')
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
-  const [sessionId, setSessionId] = useState('')
-  const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+  const fileRef = useRef<HTMLInputElement>(null)
   const t = translations[lang]
   const audio = useAudio()
 
   useEffect(() => {
-    // Init background music on first interaction
     const handler = () => { audio.initBackground() }
     document.addEventListener('click', handler, { once: true })
     return () => document.removeEventListener('click', handler)
   }, [audio])
 
-  const handleImageUpload = useCallback((index: number, file: File) => {
+  const handleImageUpload = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return
     if (file.size > 10 * 1024 * 1024) return
     const reader = new FileReader()
     reader.onloadend = () => {
-      setImages(prev => { const n = [...prev]; n[index] = file; return n })
-      setPreviews(prev => { const n = [...prev]; n[index] = reader.result as string; return n })
+      setImage(file)
+      setPreview(reader.result as string)
     }
     reader.readAsDataURL(file)
   }, [])
 
+  const handleSelectProduct = useCallback((p: ProductType) => {
+    setProduct(p)
+    setImage(null)
+    setPreview(null)
+    setError('')
+  }, [])
+
   const handleCTA = useCallback(() => {
-    if (!images[0] || !images[1] || !images[2]) {
-      setError(String(t.errorUpload))
+    if (!image) {
+      setError(String(t.errorUpload1))
       setTimeout(() => setError(''), 3000)
       return
     }
     setError('')
     setAppState('payment')
-  }, [images, t.errorUpload])
+  }, [image, t.errorUpload1])
 
   const handlePaymentSuccess = useCallback(async (txId: string) => {
-    setSessionId(txId)
     setAppState('analyzing')
     audio.playVoicePayment()
 
-    // Send images to backend
     try {
       const formData = new FormData()
-      images.forEach((img, i) => { if (img) formData.append(`image${i}`, img) })
+      if (image) formData.append('image0', image)
       formData.append('transactionId', txId)
       formData.append('lang', lang)
 
       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      const res = await fetch(`${API}/api/analyze`, {
-        method: 'POST',
-        body: formData,
-      })
-      if (!res.ok) throw new Error('Analysis failed')
+      const endpoint = product === 'poster' ? `${API}/api/poster` : `${API}/api/analyze`
+
+      const res = await fetch(endpoint, { method: 'POST', body: formData })
+      if (!res.ok) throw new Error('Processing failed')
       const data = await res.json()
-      setReportUrl(data.reportUrl)
-      setPosterUrl(data.posterUrl || null)
+
+      if (product === 'poster') {
+        setPosterUrl(data.posterUrl || null)
+        setReportUrl('')
+      } else {
+        setReportUrl(data.reportUrl || '')
+        setPosterUrl(null)
+      }
       setAppState('result')
     } catch {
       setError(String(t.errorPayment))
       setAppState('landing')
     }
-  }, [images, lang, audio, t.errorPayment])
+  }, [image, lang, product, audio, t.errorPayment])
 
   const handleDownload = useCallback(() => {
     audio.playVoiceDownload()
     const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-    window.open(`${API}${reportUrl}`, '_blank')
-  }, [reportUrl, audio])
+    if (product === 'poster' && posterUrl) {
+      window.open(`${API}${posterUrl}`, '_blank')
+    } else if (reportUrl) {
+      window.open(`${API}${reportUrl}`, '_blank')
+    }
+  }, [reportUrl, posterUrl, product, audio])
 
-  const allUploaded = images.every(Boolean)
+  const checkoutUrl = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
+
+  const price = product === 'poster' ? 'USD 1.99' : 'USD 2.99'
 
   return (
     <main className="min-h-screen bg-noir text-cream" style={{ fontFamily: 'var(--font-montserrat)' }}>
-      {/* Background heel image */}
-      <div
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage: 'url(/images/heel-bg.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 40%',
-          opacity: 0.13,
-          filter: 'blur(3px)',
-        }}
-      />
-      {/* Dark overlay for legibility */}
-      <div
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{ background: 'rgba(8,8,8,0.82)' }}
-      />
+      <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundImage: 'url(/images/heel-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center 40%', opacity: 0.13, filter: 'blur(3px)' }} />
+      <div className="fixed inset-0 z-0 pointer-events-none" style={{ background: 'rgba(8,8,8,0.82)' }} />
 
-      {/* Language Selector */}
+      {/* Header */}
       <nav className="relative z-10 px-6 py-4 border-b border-white/5">
         <div style={{ textAlign: 'center', marginBottom: '6px' }}>
           <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '32px', fontWeight: 300, letterSpacing: '0.55em', textTransform: 'uppercase' }}>
@@ -114,101 +116,128 @@ export default function Home() {
         </div>
         <div className="flex gap-4 justify-center">
           {(['en', 'es', 'pt', 'fr'] as Lang[]).map(l => (
-            <button
-              key={l}
-              className={`lang-btn ${lang === l ? 'active' : ''}`}
-              onClick={() => setLang(l)}
-            >
+            <button key={l} className={`lang-btn ${lang === l ? 'active' : ''}`} onClick={() => setLang(l)}>
               {l.toUpperCase()}
             </button>
           ))}
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative z-10 px-6 pt-12 pb-8">
+      <section className="relative z-10 px-6 pt-10 pb-8">
         <div className="max-w-md mx-auto">
-          {/* Rouge line */}
           <div className="line-editorial mb-5" />
-
           <p className="animate-fadeInUp" style={{ fontSize: '9px', letterSpacing: '0.45em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', marginBottom: '14px' }}>
             Colorimetry · Morphology · Style
           </p>
-
-          <h1
-            className="animate-fadeInUp delay-100"
-            style={{ fontFamily: 'var(--font-cormorant)', fontSize: '42px', fontWeight: 300, fontStyle: 'italic', lineHeight: 1.08, marginBottom: '12px' }}
-          >
+          <h1 className="animate-fadeInUp delay-100" style={{ fontFamily: 'var(--font-cormorant)', fontSize: '42px', fontWeight: 300, fontStyle: 'italic', lineHeight: 1.08, marginBottom: '12px' }}>
             {String(t.tagline)}
           </h1>
-
-          <p
-            className="animate-fadeInUp delay-200"
-            style={{ fontSize: '11px', fontWeight: 200, letterSpacing: '0.06em', color: 'rgba(245,240,232,0.5)', lineHeight: 1.8, marginBottom: '36px', whiteSpace: 'pre-line' }}
-          >
+          <p className="animate-fadeInUp delay-200" style={{ fontSize: '11px', fontWeight: 200, letterSpacing: '0.06em', color: 'rgba(245,240,232,0.5)', lineHeight: 1.8, marginBottom: '32px', whiteSpace: 'pre-line' }}>
             {String(t.subtitle)}
           </p>
 
-          {/* Upload Zone */}
-          <div
-            className="animate-fadeInUp delay-300"
-            style={{ border: '1px solid rgba(245,240,232,0.1)', padding: '20px', marginBottom: '16px' }}
-          >
+          {/* Product Selector */}
+          <div className="animate-fadeInUp delay-300" style={{ marginBottom: '24px' }}>
+            <p style={{ fontSize: '8px', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '14px', textAlign: 'center' }}>
+              {String(t.selectProduct)}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {/* Product 1 — Analysis */}
+              <div
+                onClick={() => handleSelectProduct('analysis')}
+                style={{
+                  border: `1px solid ${product === 'analysis' ? '#C0001A' : 'rgba(245,240,232,0.1)'}`,
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* PDF preview image */}
+                <div style={{ width: '100%', aspectRatio: '3/4', background: 'rgba(245,240,232,0.04)', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  <img src="/images/preview-analysis.jpg" alt="Analysis Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px' }}>
+                    <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '28px', fontStyle: 'italic', color: 'rgba(245,240,232,0.15)', textAlign: 'center', lineHeight: 1.2 }}>Editorial<br/>Report</div>
+                    <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '8px' }}>6 PAGES · PDF</div>
+                  </div>
+                </div>
+                <p style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: product === 'analysis' ? '#C0001A' : 'rgba(245,240,232,0.6)', marginBottom: '4px' }}>
+                  {String(t.prod1Title)}
+                </p>
+                <p style={{ fontSize: '10px', color: 'rgba(245,240,232,0.4)', marginBottom: '6px', lineHeight: 1.5 }}>{String(t.prod1Desc)}</p>
+                <p style={{ fontFamily: 'var(--font-cormorant)', fontSize: '20px', fontWeight: 300, color: 'var(--cream)' }}>USD 2.99</p>
+                {product === 'analysis' && (
+                  <div style={{ position: 'absolute', top: '8px', right: '8px', width: '6px', height: '6px', borderRadius: '50%', background: '#C0001A' }} />
+                )}
+              </div>
+
+              {/* Product 2 — Poster */}
+              <div
+                onClick={() => handleSelectProduct('poster')}
+                style={{
+                  border: `1px solid ${product === 'poster' ? '#C0001A' : 'rgba(245,240,232,0.1)'}`,
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Poster preview */}
+                <div style={{ width: '100%', aspectRatio: '3/4', background: 'rgba(245,240,232,0.04)', marginBottom: '12px', overflow: 'hidden', position: 'relative' }}>
+                  <img src="/images/preview-poster.png" alt="Poster Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px' }}>
+                    <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '22px', fontStyle: 'italic', color: 'rgba(245,240,232,0.15)', textAlign: 'center', lineHeight: 1.2 }}>The Devil<br/>Wears Prada</div>
+                    <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '8px' }}>POSTER · PNG</div>
+                  </div>
+                </div>
+                <p style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: product === 'poster' ? '#C0001A' : 'rgba(245,240,232,0.6)', marginBottom: '4px' }}>
+                  {String(t.prod2Title)}
+                </p>
+                <p style={{ fontSize: '10px', color: 'rgba(245,240,232,0.4)', marginBottom: '6px', lineHeight: 1.5 }}>{String(t.prod2Desc)}</p>
+                <p style={{ fontFamily: 'var(--font-cormorant)', fontSize: '20px', fontWeight: 300, color: 'var(--cream)' }}>USD 1.99</p>
+                {product === 'poster' && (
+                  <div style={{ position: 'absolute', top: '8px', right: '8px', width: '6px', height: '6px', borderRadius: '50%', background: '#C0001A' }} />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Upload Zone — 1 image */}
+          <div className="animate-fadeInUp delay-400" style={{ border: '1px solid rgba(245,240,232,0.1)', padding: '20px', marginBottom: '16px' }}>
             <p style={{ fontSize: '8px', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '14px' }}>
               {String(t.uploadTitle)}
             </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-              {[t.slot1, t.slot2, t.slot3].map((label, i) => (
-                <div key={i}>
-                  <input
-                    ref={fileRefs[i]}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={e => e.target.files?.[0] && handleImageUpload(i, e.target.files[0])}
-                  />
-                  <div
-                    className={`upload-slot ${previews[i] ? 'filled' : ''}`}
-                    style={{ height: '90px', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    onClick={() => fileRefs[i].current?.click()}
-                  >
-                    {previews[i] ? (
-                      <img src={previews[i]!} alt={String(label)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '18px', color: 'rgba(245,240,232,0.15)', marginBottom: '4px' }}>+</div>
-                        <div style={{ fontSize: '7px', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.2)' }}>{label}</div>
-                      </div>
-                    )}
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
+            <div
+              className={`upload-slot ${preview ? 'filled' : ''}`}
+              style={{ height: '200px', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => fileRef.current?.click()}
+            >
+              {preview ? (
+                <img src={preview} alt="Upload" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '28px', color: 'rgba(245,240,232,0.15)', marginBottom: '8px' }}>+</div>
+                  <div style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '4px' }}>
+                    {product === 'poster' ? String(t.slotPoster) : String(t.slotAnalysis)}
                   </div>
+                  <div style={{ fontSize: '7px', color: 'rgba(245,240,232,0.2)', letterSpacing: '0.1em' }}>JPG · PNG · Max 10MB</div>
                 </div>
-              ))}
+              )}
             </div>
-
-            <p style={{ fontSize: '7.5px', letterSpacing: '0.08em', color: 'rgba(245,240,232,0.2)', textAlign: 'center' }}>
-              {String(t.uploadHint)}
-            </p>
           </div>
 
-          {/* Error */}
           {error && (
-            <p style={{ fontSize: '9px', color: 'var(--rouge)', letterSpacing: '0.05em', textAlign: 'center', marginBottom: '10px' }}>
-              {error}
-            </p>
+            <p style={{ fontSize: '9px', color: 'var(--rouge)', letterSpacing: '0.05em', textAlign: 'center', marginBottom: '10px' }}>{error}</p>
           )}
 
-          {/* CTA */}
-          <button
-            className="animate-fadeInUp delay-400 cta-primary"
-            onClick={handleCTA}
-            disabled={!allUploaded}
-          >
+          <button className="animate-fadeInUp delay-400 cta-primary" onClick={handleCTA} disabled={!image}>
             {String(t.ctaButton)}
           </button>
-
           <p style={{ fontSize: '7px', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.2)', textAlign: 'center', marginTop: '10px' }}>
-            {String(t.ctaSubtext)}
+            {`Secure payment · ${price} · One-time`}
           </p>
         </div>
       </section>
@@ -221,17 +250,7 @@ export default function Home() {
             { num: '02', title: t.feat2Title, desc: t.feat2Desc },
             { num: '03', title: t.feat3Title, desc: t.feat3Desc },
           ].map((f, i) => (
-            <div
-              key={i}
-              style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid rgba(245,240,232,0.06)',
-                display: 'grid',
-                gridTemplateColumns: '32px 1fr',
-                gap: '12px',
-                alignItems: 'start',
-              }}
-            >
+            <div key={i} style={{ padding: '20px 24px', borderBottom: '1px solid rgba(245,240,232,0.06)', display: 'grid', gridTemplateColumns: '32px 1fr', gap: '12px', alignItems: 'start' }}>
               <span style={{ fontFamily: 'var(--font-cormorant)', fontSize: '11px', color: 'rgba(245,240,232,0.2)', letterSpacing: '0.1em', paddingTop: '2px' }}>{f.num}</span>
               <div>
                 <p style={{ fontSize: '8px', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'var(--cream)', marginBottom: '5px' }}>{f.title}</p>
@@ -242,7 +261,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="relative z-10 px-6 py-8 text-center" style={{ borderTop: '1px solid rgba(245,240,232,0.06)' }}>
         <p style={{ fontSize: '8px', letterSpacing: '0.2em', color: 'rgba(245,240,232,0.2)', lineHeight: 1.8 }}>{String(t.footerText)}</p>
         <p style={{ fontSize: '7px', letterSpacing: '0.15em', color: 'rgba(245,240,232,0.12)', marginTop: '6px' }}>
@@ -251,21 +269,23 @@ export default function Home() {
         <p style={{ fontSize: '7px', color: 'rgba(245,240,232,0.15)', marginTop: '6px', letterSpacing: '0.05em' }}>{String(t.privacyNote)}</p>
       </footer>
 
-      {/* Overlays */}
       {appState === 'payment' && (
         <PaymentModal
           t={t}
+          product={product}
+          price={price}
+          checkoutUrl={checkoutUrl}
           onSuccess={handlePaymentSuccess}
           onClose={() => setAppState('landing')}
         />
       )}
-
-      {appState === 'analyzing' && (
-        <AnalysisLoader t={t} />
-      )}
-
+      {appState === 'analyzing' && <AnalysisLoader t={t} product={product} />}
       {appState === 'result' && (
-        <ResultScreen t={t} onDownload={handleDownload} posterUrl={posterUrl} />
+        <ResultScreen
+          t={t}
+          product={product}
+          onDownload={handleDownload}
+        />
       )}
 
       <AudioToggle t={t} enabled={audio.bgEnabled} onToggle={audio.toggleBackground} />

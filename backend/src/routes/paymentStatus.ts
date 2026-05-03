@@ -14,6 +14,7 @@ interface PaymentState {
   sessionId: string
   timestamp: number
   status: PaymentStateStatus
+  product: 'analysis' | 'poster'
 }
 
 function getStatePath(sessionId: string): string {
@@ -41,18 +42,22 @@ function writeState(sessionId: string, state: PaymentState): void {
   fs.writeFileSync(getStatePath(sessionId), JSON.stringify(state), 'utf8')
 }
 
-export function markPaymentValidated(orderId: string, sessionId?: string) {
+export function markPaymentValidated(orderId: string, sessionId?: string, product?: string) {
   try {
-    // Use sessionId if valid, otherwise fall back to orderId
     const id = (sessionId && sessionId !== 'undefined') ? sessionId : orderId
     const state: PaymentState = {
       orderId,
       sessionId: id,
       timestamp: Date.now(),
       status: 'validated',
+      product: (product === 'poster' ? 'poster' : 'analysis') as 'analysis' | 'poster',
     }
     writeState(id, state)
-    console.log(`[PaymentStatus] validated: sessionId=${id} orderId=${orderId}`)
+    // Also write by orderId as fallback key
+    if (id !== orderId) {
+      writeState(orderId, state)
+    }
+    console.log(`[PaymentStatus] validated: sessionId=${id} orderId=${orderId} product=${state.product}`)
   } catch (e) {
     console.error('[PaymentStatus] Write error:', e)
   }
@@ -64,6 +69,10 @@ export function markPaymentProcessing(sessionId: string): boolean {
     if (!state || state.status !== 'validated') return false
     state.status = 'processing'
     writeState(sessionId, state)
+    // Update orderId file too
+    if (state.orderId !== sessionId) {
+      writeState(state.orderId, state)
+    }
     console.log(`[PaymentStatus] processing: ${sessionId}`)
     return true
   } catch (e) {
@@ -78,7 +87,6 @@ paymentStatusRouter.get('/', (req: Request, res: Response) => {
   if (!sessionId) return res.status(400).json({ error: 'Missing session' })
 
   const state = readState(sessionId)
-
   const validated = state?.status === 'validated'
   const processing = state?.status === 'processing'
 
@@ -88,20 +96,22 @@ paymentStatusRouter.get('/', (req: Request, res: Response) => {
   return res.json({ validated, processing, orderId: state?.orderId || null })
 })
 
-export function isRecentPaymentValidated(sessionId: string): boolean {
+export function getPaymentProduct(sessionId: string): string {
   const state = readState(sessionId)
-  const ok = state?.status === 'validated'
-  console.log(`[PaymentStatus] Check: ${sessionId} → status=${state?.status} ok=${ok}`)
-  return ok
+  return state?.product || 'analysis'
 }
 
 export function consumeValidatedPayment(sessionId: string): void {
   try {
+    const state = readState(sessionId)
     const file = getStatePath(sessionId)
-    if (fs.existsSync(file)) {
-      fs.unlinkSync(file)
-      console.log(`[PaymentStatus] Consumed: ${sessionId}`)
+    if (fs.existsSync(file)) { fs.unlinkSync(file) }
+    // Also clean orderId file
+    if (state && state.orderId !== sessionId) {
+      const orderFile = getStatePath(state.orderId)
+      if (fs.existsSync(orderFile)) { fs.unlinkSync(orderFile) }
     }
+    console.log(`[PaymentStatus] Consumed: ${sessionId}`)
   } catch (e) {
     console.error('[PaymentStatus] Clear error:', e)
   }

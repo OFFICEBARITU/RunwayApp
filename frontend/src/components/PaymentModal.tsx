@@ -3,17 +3,17 @@ import { useState, useEffect, useRef } from 'react'
 
 interface Props {
   t: Record<string, string | string[]>
+  product: 'analysis' | 'poster'
+  price: string
+  checkoutUrl: string
   onSuccess: (txId: string) => void
   onClose: () => void
 }
 
-export default function PaymentModal({ t, onSuccess, onClose }: Props) {
+export default function PaymentModal({ t, product, price, checkoutUrl, onSuccess, onClose }: Props) {
   const [status, setStatus] = useState<'idle' | 'waiting' | 'processing'>('idle')
   const pollRef = useRef<NodeJS.Timeout | null>(null)
-  const sessionRef = useRef<string>('')
   const firedRef = useRef(false)
-
-  const CHECKOUT_URL = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
   const API = process.env.NEXT_PUBLIC_API_URL || ''
 
   const stopPolling = () => {
@@ -21,7 +21,6 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
   }
 
   const startPolling = (sessionId: string) => {
-    sessionRef.current = sessionId
     firedRef.current = false
     pollRef.current = setInterval(async () => {
       if (firedRef.current) { stopPolling(); return }
@@ -29,7 +28,6 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
         const res = await fetch(`${API}/api/payment-status?session=${sessionId}`)
         if (!res.ok) return
         const data = await res.json()
-        // Stop polling if validated OR already processing (backend got it)
         if ((data.validated || data.processing) && !firedRef.current) {
           firedRef.current = true
           stopPolling()
@@ -41,44 +39,27 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
     setTimeout(() => stopPolling(), 600000)
   }
 
-  useEffect(() => {
-    return () => stopPolling()
-  }, [])
+  useEffect(() => { return () => stopPolling() }, [])
 
   const handlePayClick = () => {
     const sessionId = 'ls_' + Date.now()
     setStatus('waiting')
     startPolling(sessionId)
-    const url = `${CHECKOUT_URL}?checkout[custom][session_id]=${sessionId}`
+    const url = `${checkoutUrl}?checkout[custom][session_id]=${sessionId}&checkout[custom][product]=${product}`
     window.open(url, '_blank', 'width=500,height=700')
   }
 
+  const title = product === 'poster' ? String(t.prod2Title) : String(t.prod1Title)
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{
-        background: 'rgba(8,8,8,0.92)',
-        backgroundImage: 'url(/images/heel-bg.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center 40%',
-      }}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,8,8,0.92)', backgroundImage: 'url(/images/heel-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center 40%' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,8,8,0.90)', backdropFilter: 'blur(6px)' }} />
-      <div style={{
-        background: '#0f0f0f',
-        border: '1px solid rgba(245,240,232,0.12)',
-        padding: '36px 28px 40px',
-        width: '100%',
-        maxWidth: '440px',
-        borderBottom: 'none',
-        position: 'relative',
-        zIndex: 1,
-      }}>
+      <div style={{ background: '#0f0f0f', border: '1px solid rgba(245,240,232,0.12)', padding: '36px 28px 40px', width: '100%', maxWidth: '440px', borderBottom: 'none', position: 'relative', zIndex: 1 }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '20px', background: 'none', border: 'none', color: 'rgba(245,240,232,0.3)', fontSize: '18px', cursor: 'pointer' }}>×</button>
         <div style={{ width: '32px', height: '1px', background: '#C0001A', marginBottom: '20px' }} />
         <p style={{ fontSize: '7px', letterSpacing: '0.5em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '10px' }}>{String(t.modalEyebrow)}</p>
-        <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '28px', fontStyle: 'italic', fontWeight: 300, color: '#F5F0E8', marginBottom: '4px' }}>{String(t.modalTitle)}</h2>
-        <p style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '40px', fontWeight: 300, color: '#F5F0E8', lineHeight: 1.1, marginBottom: '4px' }}>{String(t.modalAmount)}</p>
+        <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '24px', fontStyle: 'italic', fontWeight: 300, color: '#F5F0E8', marginBottom: '4px' }}>{title}</h2>
+        <p style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '40px', fontWeight: 300, color: '#F5F0E8', lineHeight: 1.1, marginBottom: '4px' }}>{price}</p>
         <p style={{ fontSize: '8px', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.25)', marginBottom: '28px' }}>{String(t.modalNote)}</p>
 
         {status === 'processing' ? (

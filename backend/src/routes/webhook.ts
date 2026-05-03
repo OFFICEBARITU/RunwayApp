@@ -1,7 +1,6 @@
 import { markPaymentValidated } from './paymentStatus'
 import { Router, Request, Response } from 'express'
 import crypto from 'crypto'
-import { registerValidatedPayment } from './analyze'
 
 export const webhookRouter = Router()
 
@@ -45,11 +44,11 @@ webhookRouter.post('/lemonsqueezy', (req: Request, res: Response) => {
       const orderId = event.data?.id
 
       if (orderId && (status === 'paid' || status === 'pending')) {
-        registerValidatedPayment(String(orderId))
         const customData = event.data?.attributes?.checkout_data?.custom
         const sessionId = customData?.session_id
-        console.log(`[Webhook LS] Payment validated: ${orderId} | sessionId: ${sessionId} | custom: ${JSON.stringify(customData)}`)
-        markPaymentValidated(String(orderId), sessionId ? String(sessionId) : undefined)
+        const product = customData?.product || 'analysis'
+        console.log(`[Webhook LS] Payment validated: ${orderId} | sessionId: ${sessionId} | product: ${product}`)
+        markPaymentValidated(String(orderId), sessionId ? String(sessionId) : undefined, String(product))
       }
     }
 

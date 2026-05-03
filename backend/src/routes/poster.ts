@@ -3,11 +3,10 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { v4 as uuid } from 'uuid'
-import { runAnalysis } from '../services/analysisService'
-import { generatePDF } from '../services/pdfService'
+import { generatePosterImage } from '../services/imageService'
 import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
 
-export const analyzeRouter = Router()
+export const posterRouter = Router()
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads')
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
@@ -29,14 +28,14 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 })
 
-analyzeRouter.post(
+posterRouter.post(
   '/',
   upload.fields([{ name: 'image0', maxCount: 1 }]),
   async (req: Request, res: Response) => {
     const uploadedFiles: string[] = []
     try {
-      const { transactionId, lang = 'en' } = req.body
-      console.log(`[Analyze] Request — transactionId: ${transactionId}`)
+      const { transactionId } = req.body
+      console.log(`[Poster] Request — transactionId: ${transactionId}`)
 
       if (!transactionId) {
         return res.status(402).json({ error: 'Payment required.' })
@@ -45,39 +44,43 @@ analyzeRouter.post(
       const locked = markPaymentProcessing(transactionId)
       if (!locked) {
         if (process.env.NODE_ENV === 'production') {
-          console.error(`[Analyze] Gate failed: ${transactionId}`)
+          console.error(`[Poster] Gate failed: ${transactionId}`)
           return res.status(409).json({ error: 'Payment not validated or already processing.' })
         }
         console.warn(`[DEV] Bypassing payment gate for: ${transactionId}`)
       }
 
-      console.log(`[Analyze] Processing started: ${transactionId}`)
+      console.log(`[Poster] Processing started: ${transactionId}`)
 
       const files = req.files as Record<string, any[]>
       const img0 = files?.image0?.[0]
       if (!img0) return res.status(400).json({ error: 'Image is required.' })
 
-      const imagePaths = [img0.path]
-      uploadedFiles.push(...imagePaths)
+      const imagePath = img0.path
+      uploadedFiles.push(imagePath)
 
-      const analysisResult = await runAnalysis(imagePaths)
+      // Read image as base64
+      const imageBuffer = fs.readFileSync(imagePath)
+      const imageBase64 = [`data:image/jpeg;base64,${imageBuffer.toString('base64')}`]
 
-      console.log('[Analyze] Generating PDF...')
-      const reportUrl = await generatePDF({ ...analysisResult, lang })
-      if (!reportUrl) throw new Error('PDF generation failed')
-      console.log(`[Analyze] PDF OK: ${reportUrl}`)
+      console.log('[Poster] Generating poster...')
+      const posterUrl = await generatePosterImage({
+        imageBase64,
+        colorimetry: null,
+        hairstyle: null,
+      })
+      console.log(`[Poster] OK: ${posterUrl}`)
 
-      await Promise.all(imagePaths.map(p => fs.promises.unlink(p).catch(() => {})))
+      await fs.promises.unlink(imagePath).catch(() => {})
 
-      if (locked && reportUrl) consumeValidatedPayment(transactionId)
+      if (locked && posterUrl) consumeValidatedPayment(transactionId)
 
-      console.log(`[Analyze] Done — pdf:${!!reportUrl}`)
-      return res.json({ success: true, reportUrl })
+      return res.json({ success: true, posterUrl })
 
     } catch (err: any) {
       await Promise.all(uploadedFiles.map(p => fs.promises.unlink(p).catch(() => {})))
-      console.error('[Analyze Error]', err.message)
-      return res.status(500).json({ error: 'Analysis failed. Please try again.' })
+      console.error('[Poster Error]', err.message)
+      return res.status(500).json({ error: 'Poster generation failed. Please try again.' })
     }
   }
 )
