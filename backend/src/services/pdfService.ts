@@ -15,13 +15,15 @@ function hexToRgb(hex: string) {
   return `rgb(${r},${g},${b})`
 }
 
+// FIX: return type corregido de :string a :Promise<string> — la función es async
+// y TypeScript compilaba con error en modo estricto
 async function generateReportHTML(data: {
   colorimetry: any
   hairstyle: any
   imageBase64: string[]
   lang: string
   referenceImages?: { hairstyles: (string|null)[]; outfits: (string|null)[] }
-}): string {
+}): Promise<string> {
   const { colorimetry: c, hairstyle: h, imageBase64: imgs, referenceImages: refs } = data
   const refHairstyles = refs?.hairstyles || []
   const refOutfits = refs?.outfits || []
@@ -1274,7 +1276,7 @@ body {
   <!-- User photo + final verdict -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:#080808;border-top:0.5px solid rgba(242,237,228,0.06);">
     <div style="padding:12px 14px;border-right:0.5px solid rgba(242,237,228,0.06);">
-      <img src="${resizedImgs[2] || resizedImgs[0]}" style="width:100%;height:110px;object-fit:cover;object-position:center top;" />
+      <img src="${resizedImgs[2] ?? resizedImgs[1] ?? resizedImgs[0]}" style="width:100%;height:110px;object-fit:cover;object-position:center top;" />
     </div>
     <div style="padding:12px 14px;display:flex;flex-direction:column;justify-content:center;">
       <p style="font-size:6px;letter-spacing:0.4em;text-transform:uppercase;color:rgba(242,237,228,0.3);margin-bottom:6px;">Veredicto editorial</p>
@@ -1417,12 +1419,19 @@ export async function generatePDF(data: {
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await new Promise(r => setTimeout(r, 500))
 
-    await page.pdf({
-      path: outputPath,
-      width: '390px',
-      printBackground: true,
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
-    })
+    // FIX: timeout explícito de 60s para page.pdf() — sin esto Puppeteer puede
+    // colgar indefinidamente bajo carga, bloqueando el proceso background
+    await Promise.race([
+      page.pdf({
+        path: outputPath,
+        width: '390px',
+        printBackground: true,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Puppeteer PDF generation timed out after 60s')), 60000)
+      ),
+    ])
   } finally {
     await browser.close()
   }

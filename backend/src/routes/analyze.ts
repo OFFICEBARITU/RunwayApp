@@ -26,7 +26,7 @@ const fileFilter = (_: any, file: any, cb: multer.FileFilterCallback) => {
 
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024, files: 1 } })
 
-export function registerValidatedPayment(_id: string) {}
+// FIX: eliminada registerValidatedPayment que era una función vacía sin efecto
 
 analyzeRouter.post(
   '/',
@@ -60,7 +60,7 @@ analyzeRouter.post(
       const jobId = uuid()
       createJob(jobId)
 
-      // Respond immediately with jobId
+      // Respond immediately with jobId — el frontend hace polling
       res.json({ success: true, jobId })
 
       // Process in background (after response sent)

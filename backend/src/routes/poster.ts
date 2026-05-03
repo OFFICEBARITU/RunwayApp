@@ -6,6 +6,8 @@ import { v4 as uuid } from 'uuid'
 import { generatePosterImage } from '../services/imageService'
 import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
 import { createJob, completeJob, failJob } from './jobStatus'
+// FIX: importar runAnalysis para obtener colorimetry y hairstyle reales del usuario
+import { runAnalysis } from '../services/analysisService'
 
 export const posterRouter = Router()
 
@@ -62,10 +64,24 @@ posterRouter.post(
           const imageBuffer = fs.readFileSync(img0.path)
           const imageBase64 = [`data:image/jpeg;base64,${imageBuffer.toString('base64')}`]
 
+          // FIX: ejecutar análisis para obtener colorimetry y hairstyle reales
+          // en lugar de pasar null, que ignoraba el género y la estación del usuario
+          let colorimetry: any = null
+          let hairstyle: any = null
+          try {
+            console.log(`[FLOW] poster running analysis for personalization jobId=${jobId}`)
+            const analysisResult = await runAnalysis([img0.path])
+            colorimetry = analysisResult.colorimetry ?? null
+            hairstyle = analysisResult.hairstyle ?? null
+          } catch (analysisErr: any) {
+            // Si el análisis falla, continuamos con defaults en generatePosterImage
+            console.warn(`[FLOW] poster analysis failed, using defaults: ${analysisErr.message}`)
+          }
+
           const posterUrl = await generatePosterImage({
             imageBase64,
-            colorimetry: null,
-            hairstyle: null,
+            colorimetry,
+            hairstyle,
           })
           if (!posterUrl) throw new Error('Poster generation failed')
           console.log(`[FLOW] poster done: ${posterUrl}`)

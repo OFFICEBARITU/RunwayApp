@@ -10,6 +10,37 @@ import AudioToggle from '@/components/AudioToggle'
 type AppState = 'landing' | 'payment' | 'analyzing' | 'result'
 type ProductType = 'analysis' | 'poster'
 
+// FIX: helper para polling del job status con timeout y backoff
+async function pollJobStatus(
+  API: string,
+  jobId: string,
+  maxWaitMs = 300000, // 5 minutos máximo
+  intervalMs = 3000
+): Promise<{ reportUrl?: string; posterUrl?: string }> {
+  const start = Date.now()
+
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise(r => setTimeout(r, intervalMs))
+
+    const res = await fetch(`${API}/api/job-status?id=${jobId}`)
+    if (!res.ok) continue
+
+    const data = await res.json()
+
+    if (data.status === 'done') {
+      return { reportUrl: data.reportUrl, posterUrl: data.posterUrl }
+    }
+
+    if (data.status === 'error') {
+      throw new Error(data.error || 'Processing failed')
+    }
+
+    // status === 'processing' → continúa esperando
+  }
+
+  throw new Error('Processing timed out. Please try again.')
+}
+
 export default function Home() {
   const [lang, setLang] = useState<Lang>('en')
   const [appState, setAppState] = useState<AppState>('landing')
@@ -70,19 +101,26 @@ export default function Home() {
       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
       const endpoint = product === 'poster' ? `${API}/api/poster` : `${API}/api/analyze`
 
+      // FIX: el backend responde inmediatamente con { success, jobId }
       const res = await fetch(endpoint, { method: 'POST', body: formData })
       if (!res.ok) throw new Error('Processing failed')
       const data = await res.json()
 
+      // FIX: extraer jobId y hacer polling hasta que el job termine
+      const jobId: string = data.jobId
+      if (!jobId) throw new Error('No job ID received from server')
+
+      const result = await pollJobStatus(API, jobId)
+
       if (product === 'poster') {
-        setPosterUrl(data.posterUrl || null)
+        setPosterUrl(result.posterUrl || null)
         setReportUrl('')
       } else {
-        setReportUrl(data.reportUrl || '')
+        setReportUrl(result.reportUrl || '')
         setPosterUrl(null)
       }
       setAppState('result')
-    } catch {
+    } catch (err: any) {
       setError(String(t.errorPayment))
       setAppState('landing')
     }

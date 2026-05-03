@@ -17,6 +17,17 @@ async function resizeToBase64(inputBuffer: Buffer, maxWidth: number, maxHeight: 
   return resized.toString('base64')
 }
 
+// FIX: detección de género corregida — "female".includes("male") era true, causando
+// que cualquier mujer fuera tratada como hombre. Ahora se chequea "female" primero.
+function detectIsMale(gender: string): boolean {
+  const g = gender.toLowerCase().trim()
+  // chequear explícitamente female/mujer ANTES de chequear male/man
+  if (g.includes('female') || g.includes('mujer') || g.includes('femenino') || g === 'f') return false
+  if (g.includes('male') || g.includes('man') || g.includes('hombre') || g.includes('masculino') || g === 'm') return true
+  // default: female
+  return false
+}
+
 export async function generatePosterImage(data: {
   imageBase64: string[]
   colorimetry: any
@@ -25,7 +36,8 @@ export async function generatePosterImage(data: {
   const { imageBase64, colorimetry, hairstyle } = data
 
   const gender: string = (hairstyle?.gender || colorimetry?.gender || 'female').toLowerCase()
-  const isMale = gender.includes('male') || gender.includes('man') || gender.includes('hombre')
+  // FIX: usar función corregida en lugar de la expresión inline con el bug
+  const isMale = detectIsMale(gender)
 
   const season = colorimetry?.season || colorimetry?.seasonSubtype || 'Soft Autumn'
   const dressColor = getDressColor(season)
@@ -56,10 +68,10 @@ export async function generatePosterImage(data: {
     prompt,
     image_url: baseImageDataUrl,
     image_urls: [userImageDataUrl],
-    num_inference_steps: 20,        // reduced from 28 → faster
+    num_inference_steps: 20,
     guidance_scale: 3.5,
     num_images: 1,
-    output_format: 'jpeg',          // jpeg is faster than png
+    output_format: 'jpeg',
     safety_tolerance: '2',
   }
 
