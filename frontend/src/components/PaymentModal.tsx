@@ -32,7 +32,9 @@ export default function PaymentModal({ t, product, price, checkoutUrl, onSuccess
           firedRef.current = true
           stopPolling()
           setStatus('processing')
-          setTimeout(() => onSuccess(sessionId), 50)
+          const effectiveId = data.orderId || sessionId
+          console.log('[FLOW] using effectiveId:', effectiveId, 'orderId from backend:', data.orderId)
+          setTimeout(() => onSuccess(effectiveId), 50)
         }
       } catch {}
     }, 3000)
