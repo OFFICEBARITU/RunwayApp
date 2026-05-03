@@ -373,10 +373,21 @@ export async function runAnalysis(imagePaths: string[]): Promise<AnalysisResult>
     referenceImages = { hairstyles: [...hi, ...ai], outfits: oi }
   }
 
-  const imageBase64 = imagePaths.map(p => {
-    const b64 = fs.readFileSync(p).toString('base64')
-    return `data:${getMimeType(p)};base64,${b64}`
-  })
+  // FIX OOM: redimensionar a max 400x500px antes de incrustar en el HTML del PDF.
+  // La imagen original (hasta 10MB) en base64 dentro del HTML causaba que Puppeteer
+  // agotara los 167MB de heap disponibles en Render free tier → FATAL heap OOM.
+  const imageBase64 = await Promise.all(imagePaths.map(async (p) => {
+    try {
+      const buf = await sharp(p)
+        .resize(400, 500, { fit: 'cover', position: 'top' })
+        .jpeg({ quality: 70 })
+        .toBuffer()
+      return `data:image/jpeg;base64,${buf.toString('base64')}`
+    } catch {
+      const b64 = fs.readFileSync(p).toString('base64')
+      return `data:${getMimeType(p)};base64,${b64}`
+    }
+  }))
 
   return { colorimetry, hairstyle, imageBase64, referenceImages }
 }
