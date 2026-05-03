@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import chromium from '@sparticuz/chromium'
 import puppeteer from 'puppeteer-core'
 import path from 'path'
@@ -14,7 +15,7 @@ function hexToRgb(hex: string) {
   return `rgb(${r},${g},${b})`
 }
 
-function generateReportHTML(data: {
+async function generateReportHTML(data: {
   colorimetry: any
   hairstyle: any
   imageBase64: string[]
@@ -24,6 +25,19 @@ function generateReportHTML(data: {
   const { colorimetry: c, hairstyle: h, imageBase64: imgs, referenceImages: refs } = data
   const refHairstyles = refs?.hairstyles || []
   const refOutfits = refs?.outfits || []
+
+  // Resize user image to thumbnail to prevent OOM in Puppeteer
+  const resizedImgs = await Promise.all(imgs.map(async (img) => {
+    try {
+      const base64Data = img.replace(/^data:image\/\w+;base64,/, '')
+      const buf = Buffer.from(base64Data, 'base64')
+      const resized = await sharp(buf)
+        .resize(200, 250, { fit: 'cover', position: 'top' })
+        .jpeg({ quality: 60 })
+        .toBuffer()
+      return `data:image/jpeg;base64,${resized.toString('base64')}`
+    } catch { return img }
+  }))
 
   const bestColors = (c.colorAnalysis?.bestColors || []).slice(0, 8)
   const avoidColors = (c.colorAnalysis?.avoidColors || []).slice(0, 4)
@@ -803,7 +817,7 @@ body {
         <span class="badge">${c.contrastLevel || 'Medium'} Contrast</span>
       </div>
     </div>
-    <img src="${imgs[0]}" class="header-img" alt="Portrait" />
+    <img src="${resizedImgs[0]}" class="header-img" alt="Portrait" />
   </div>
 
   <!-- Seasons -->
@@ -812,7 +826,7 @@ body {
     <div class="seasons-grid">
       ${['Spring', 'Summer', 'Autumn', 'Winter'].map(s => `
         <div class="season-card ${c.season === s ? 'active' : ''}">
-          <img src="${imgs[0]}" class="season-img" alt="${s}" />
+          <img src="${resizedImgs[0]}" class="season-img" alt="${s}" />
           <span class="season-name">${s === 'Spring' ? 'Primavera' : s === 'Summer' ? 'Verano' : s === 'Autumn' ? 'Otoño' : 'Invierno'}</span>
           <span class="season-sub">${s === 'Spring' ? 'Cálida·Clara' : s === 'Summer' ? 'Fría·Clara' : s === 'Autumn' ? 'Cálida·Profunda' : 'Fría·Profunda'}</span>
           ${c.season === s ? '<div style="position:absolute;top:4px;right:4px;width:12px;height:12px;background:#C0001A;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:white;">✓</div>' : ''}
@@ -831,7 +845,7 @@ body {
           ${bestColors.map((hex: string, i: number) => `
             <div style="text-align:center;width:36px;">
               <div style="position:relative;width:36px;height:44px;overflow:hidden;">
-                <img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center top;"/>
+                <img src="${resizedImgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center top;"/>
                 <div style="position:absolute;inset:0;background:${hex};opacity:0.65;mix-blend-mode:multiply;"></div>
               </div>
               <div style="width:7px;height:7px;border-radius:50%;background:${hex};margin:2px auto 1px;"></div>
@@ -846,7 +860,7 @@ body {
           ${avoidColors.map((hex: string, i: number) => `
             <div style="text-align:center;width:36px;">
               <div style="position:relative;width:36px;height:44px;overflow:hidden;">
-                <img src="${imgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center top;filter:grayscale(40%)"/>
+                <img src="${resizedImgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center top;filter:grayscale(40%)"/>
                 <div style="position:absolute;inset:0;background:${hex};opacity:0.7;mix-blend-mode:multiply;"></div>
               </div>
               <div style="width:7px;height:7px;border-radius:50%;background:${hex};margin:2px auto 1px;"></div>
@@ -930,7 +944,7 @@ body {
       ${(h.hairsToAvoid || []).slice(0,6).map((item: any, i: number) => `
         <div class="avoid-card">
           <div style="position:relative;">
-            <img src="${refHairstyles[i+5] || imgs[0]}" class="avoid-img" alt="${item.name}" />
+            <img src="${refHairstyles[i+5] || resizedImgs[0]}" class="avoid-img" alt="${item.name}" />
             <div class="avoid-x">✗</div>
           </div>
           <div class="avoid-name">${item.name?.substring(0,16)}</div>
@@ -945,7 +959,7 @@ body {
     <div class="favorable-grid">
       ${bestHairstyles.map((item: any, i: number) => `
         <div class="favorable-card">
-          <img src="${refHairstyles[i] || imgs[0]}" class="favorable-img" alt="${item.name}" />
+          <img src="${refHairstyles[i] || resizedImgs[0]}" class="favorable-img" alt="${item.name}" />
           <div class="check-badge">✓</div>
           <div class="favorable-name">${item.name?.split(' ').slice(0,3).join(' ')}</div>
         </div>
@@ -980,7 +994,7 @@ body {
       ${bestHairstyles.slice(0,5).map((item: any, i: number) => `
         <div class="rank-item">
           <div class="rank-num ${i === 0 ? 'gold' : ''}">${i+1}</div>
-          <img src="${refHairstyles[i] || imgs[0]}" class="rank-thumb" alt="${item.name}" />
+          <img src="${refHairstyles[i] || resizedImgs[0]}" class="rank-thumb" alt="${item.name}" />
           <div>
             <div class="rank-label">${item.name?.substring(0,18)}</div>
             <div class="stars">${'★'.repeat(item.rating || (5-i))}${'☆'.repeat(5-(item.rating || (5-i)))}</div>
@@ -992,14 +1006,14 @@ body {
       <p class="glowup-title">Antes vs Glow Up</p>
       <div class="glowup-compare">
         <div>
-          <img src="${imgs[0]}" class="glowup-img" alt="Before" style="filter:grayscale(50%);" />
+          <img src="${resizedImgs[0]}" class="glowup-img" alt="Before" style="filter:grayscale(50%);" />
           <div class="glowup-label">Antes</div>
         </div>
         <div style="text-align:center;">
           <div class="vs-badge">VS</div>
         </div>
         <div>
-          <img src="${imgs[0]}" class="glowup-img" alt="After" />
+          <img src="${resizedImgs[0]}" class="glowup-img" alt="After" />
           <div class="glowup-label after">Glow Up ✓</div>
         </div>
       </div>
@@ -1021,7 +1035,7 @@ body {
       <h2 style="font-family:'Georgia',serif;font-size:22px;font-style:italic;font-weight:300;color:#F2EDE4;margin-bottom:5px;">Estilo<br>Personal</h2>
       <p class="section-label">Guía editorial de imagen</p>
     </div>
-    <img src="${imgs[1] || imgs[0]}" style="width:72px;height:88px;object-fit:cover;object-position:center top;filter:grayscale(20%);" alt="Style" />
+    <img src="${resizedImgs[1] || resizedImgs[0]}" style="width:72px;height:88px;object-fit:cover;object-position:center top;filter:grayscale(20%);" alt="Style" />
   </div>
 
   <!-- Analysis badges -->
@@ -1260,7 +1274,7 @@ body {
   <!-- User photo + final verdict -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:#080808;border-top:0.5px solid rgba(242,237,228,0.06);">
     <div style="padding:12px 14px;border-right:0.5px solid rgba(242,237,228,0.06);">
-      <img src="${imgs[2] || imgs[0]}" style="width:100%;height:110px;object-fit:cover;object-position:center top;" />
+      <img src="${resizedImgs[2] || resizedImgs[0]}" style="width:100%;height:110px;object-fit:cover;object-position:center top;" />
     </div>
     <div style="padding:12px 14px;display:flex;flex-direction:column;justify-content:center;">
       <p style="font-size:6px;letter-spacing:0.4em;text-transform:uppercase;color:rgba(242,237,228,0.3);margin-bottom:6px;">Veredicto editorial</p>
@@ -1388,7 +1402,7 @@ export async function generatePDF(data: {
   lang: string
   referenceImages?: { hairstyles: (string|null)[]; outfits: (string|null)[] }
 }): Promise<string> {
-  const html = generateReportHTML(data)
+  const html = await generateReportHTML(data)
   const filename = `report-${uuid()}.pdf`
   const outputPath = path.join(REPORTS_DIR, filename)
 
@@ -1409,12 +1423,9 @@ export async function generatePDF(data: {
       printBackground: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     })
-
+  } finally {
     await browser.close()
-    console.log(`[PDF] Generated: ${filename}`)
-    return `/reports/${filename}`
-  } catch (err) {
-    await browser.close()
-    throw err
   }
+
+  return `/reports/${filename}`
 }
