@@ -62,17 +62,18 @@ posterRouter.post(
           const imageBuffer = fs.readFileSync(img0.path)
           const imageBase64 = [`data:image/jpeg;base64,${imageBuffer.toString('base64')}`]
 
-          const posterUrl = await generatePosterImage({
+          const posterResult = await generatePosterImage({
             imageBase64,
             colorimetry: null,
             hairstyle: null,
           })
-          console.log(`[FLOW] poster done: ${posterUrl}`)
+          if (!posterResult?.base64) throw new Error('Poster generation failed')
+          console.log(`[FLOW] poster done: ${posterResult.filename}`)
 
           await fs.promises.unlink(img0.path).catch(() => {})
           if (locked) consumeValidatedPayment(transactionId)
 
-          completeJob(jobId, { posterUrl })
+          completeJob(jobId, { posterData: posterResult.base64, posterFilename: posterResult.filename })
         } catch (err: any) {
           await fs.promises.unlink(img0.path).catch(() => {})
           console.error('[Poster Error]', err.message)

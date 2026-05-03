@@ -19,6 +19,8 @@ export default function Home() {
   const [error, setError] = useState('')
   const [reportUrl, setReportUrl] = useState('')
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
+  const [reportFilename, setReportFilename] = useState('runway-report.pdf')
+  const [posterFilename, setPosterFilename] = useState('runway-poster.jpg')
   const fileRef = useRef<HTMLInputElement>(null)
   const t = translations[lang]
   const audio = useAudio()
@@ -70,48 +72,18 @@ export default function Home() {
       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
       const endpoint = product === 'poster' ? `${API}/api/poster` : `${API}/api/analyze`
 
-      // Submit job — backend responds immediately with jobId
       const res = await fetch(endpoint, { method: 'POST', body: formData })
       if (!res.ok) throw new Error('Processing failed')
       const data = await res.json()
 
-      if (!data.jobId) throw new Error('No job ID returned')
-
-      // Poll for job completion
-      const jobId = data.jobId
-      let attempts = 0
-      const maxAttempts = 60 // 5 min max (60 * 5s)
-
-      const pollJob = async (): Promise<void> => {
-        attempts++
-        if (attempts > maxAttempts) throw new Error('Job timed out')
-
-        const statusRes = await fetch(`${API}/api/job-status?id=${jobId}`)
-        const status = await statusRes.json()
-
-        if (status.status === 'done') {
-          if (product === 'poster') {
-            setPosterUrl(status.posterUrl || null)
-            setReportUrl('')
-          } else {
-            setReportUrl(status.reportUrl || '')
-            setPosterUrl(null)
-          }
-          setAppState('result')
-          return
-        }
-
-        if (status.status === 'error') {
-          throw new Error(status.error || 'Processing failed')
-        }
-
-        // Still processing — wait 5s and poll again
-        await new Promise(r => setTimeout(r, 5000))
-        return pollJob()
+      if (product === 'poster') {
+        setPosterUrl(data.posterUrl || null)
+        setReportUrl('')
+      } else {
+        setReportUrl(data.reportUrl || '')
+        setPosterUrl(null)
       }
-
-      await pollJob()
-
+      setAppState('result')
     } catch {
       setError(String(t.errorPayment))
       setAppState('landing')
@@ -120,13 +92,17 @@ export default function Home() {
 
   const handleDownload = useCallback(() => {
     audio.playVoiceDownload()
-    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-    if (product === 'poster' && posterUrl) {
-      window.open(`${API}${posterUrl}`, '_blank')
-    } else if (reportUrl) {
-      window.open(`${API}${reportUrl}`, '_blank')
-    }
-  }, [reportUrl, posterUrl, product, audio])
+    const url = product === 'poster' ? posterUrl : reportUrl
+    const filename = product === 'poster' ? posterFilename : reportFilename
+    if (!url) return
+    // Download directly from base64 data URL
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }, [reportUrl, posterUrl, reportFilename, posterFilename, product, audio])
 
   const checkoutUrl = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
 

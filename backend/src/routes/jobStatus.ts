@@ -9,8 +9,10 @@ if (!fs.existsSync(JOBS_DIR)) fs.mkdirSync(JOBS_DIR, { recursive: true })
 
 interface JobState {
   status: 'processing' | 'done' | 'error'
-  reportUrl?: string
-  posterUrl?: string
+  reportData?: string   // base64 PDF
+  posterData?: string   // base64 JPEG
+  reportFilename?: string
+  posterFilename?: string
   error?: string
   createdAt: number
 }
@@ -20,11 +22,15 @@ export function createJob(jobId: string): void {
   fs.writeFileSync(path.join(JOBS_DIR, `${jobId}.json`), JSON.stringify(state))
 }
 
-export function completeJob(jobId: string, result: { reportUrl?: string; posterUrl?: string }): void {
+export function completeJob(jobId: string, result: {
+  reportData?: string
+  posterData?: string
+  reportFilename?: string
+  posterFilename?: string
+}): void {
   const state: JobState = { status: 'done', ...result, createdAt: Date.now() }
   fs.writeFileSync(path.join(JOBS_DIR, `${jobId}.json`), JSON.stringify(state))
   console.log(`[Job] Done: ${jobId}`)
-  // Clean up after 1 hour
   setTimeout(() => {
     try { fs.unlinkSync(path.join(JOBS_DIR, `${jobId}.json`)) } catch {}
   }, 60 * 60 * 1000)
@@ -40,7 +46,6 @@ export function failJob(jobId: string, error: string): void {
 jobStatusRouter.get('/', (req: Request, res: Response) => {
   const jobId = req.query.id as string
   if (!jobId) return res.status(400).json({ error: 'Missing job id' })
-
   try {
     const file = path.join(JOBS_DIR, `${jobId}.json`)
     if (!fs.existsSync(file)) return res.json({ status: 'processing' })

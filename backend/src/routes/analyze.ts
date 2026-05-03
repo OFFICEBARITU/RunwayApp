@@ -70,14 +70,14 @@ analyzeRouter.post(
           const analysisResult = await runAnalysis([img0.path])
 
           console.log('[FLOW] generating PDF...')
-          const reportUrl = await generatePDF({ ...analysisResult, lang })
-          if (!reportUrl) throw new Error('PDF generation failed')
-          console.log(`[FLOW] PDF done: ${reportUrl}`)
+          const pdfResult = await generatePDF({ ...analysisResult, lang })
+          if (!pdfResult?.base64) throw new Error('PDF generation failed')
+          console.log(`[FLOW] PDF done: ${pdfResult.filename}`)
 
           await fs.promises.unlink(img0.path).catch(() => {})
           if (locked) consumeValidatedPayment(transactionId)
 
-          completeJob(jobId, { reportUrl })
+          completeJob(jobId, { reportData: pdfResult.base64, reportFilename: pdfResult.filename })
         } catch (err: any) {
           await fs.promises.unlink(img0.path).catch(() => {})
           console.error('[Analyze Error]', err.message)

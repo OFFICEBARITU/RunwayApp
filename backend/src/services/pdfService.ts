@@ -1387,7 +1387,7 @@ export async function generatePDF(data: {
   imageBase64: string[]
   lang: string
   referenceImages?: { hairstyles: (string|null)[]; outfits: (string|null)[] }
-}): Promise<string> {
+}): Promise<{ base64: string; filename: string }> {
   const html = generateReportHTML(data)
   const filename = `report-${uuid()}.pdf`
   const outputPath = path.join(REPORTS_DIR, filename)
