@@ -1413,5 +1413,5 @@ export async function generatePDF(data: {
     await browser.close()
   }
 
-  return `/reports/${filename}`
+  // removed - base64 returned above
 }
