@@ -1400,8 +1400,8 @@ export async function generatePDF(data: {
 
   try {
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    await new Promise(r => setTimeout(r, 1500)) // wait for Google Fonts
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
+    await new Promise(r => setTimeout(r, 800))
 
     await page.pdf({
       path: outputPath,
