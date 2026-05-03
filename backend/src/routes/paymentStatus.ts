@@ -86,13 +86,13 @@ paymentStatusRouter.get('/', (req: Request, res: Response) => {
 })
 
 export function isRecentPaymentValidated(sessionId: string): boolean {
+  // Read state regardless of consumed flag — analyze needs to validate even after GET locked it
   const state = readState()
-  if (!state || state.consumed) return false
+  if (!state) return false
 
   const sessionTimestamp = parseInt(
     sessionId.replace('ls_', '').replace('gm_', '')
   )
-  // 10 minute window — enough for slow payers
   if (!isNaN(sessionTimestamp)) {
     return Date.now() - sessionTimestamp < 10 * 60 * 1000
   }
