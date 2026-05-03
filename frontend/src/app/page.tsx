@@ -100,7 +100,7 @@ export default function Home() {
 
   const checkoutUrl = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
 
-  const price = product === 'poster' ? 'USD 1.99' : 'USD 2.99'
+  const price = 'USD 2.99'
 
   return (
     <main className="min-h-screen bg-noir text-cream" style={{ fontFamily: 'var(--font-montserrat)' }}>
@@ -154,13 +154,10 @@ export default function Home() {
                   overflow: 'hidden',
                 }}
               >
-                {/* PDF preview image */}
-                <div style={{ width: '100%', aspectRatio: '3/4', background: 'rgba(245,240,232,0.04)', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  <img src="/images/preview-analysis.jpg" alt="Analysis Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px' }}>
-                    <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '28px', fontStyle: 'italic', color: 'rgba(245,240,232,0.15)', textAlign: 'center', lineHeight: 1.2 }}>Editorial<br/>Report</div>
-                    <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '8px' }}>6 PAGES · PDF</div>
-                  </div>
+                {/* PDF preview */}
+                <div style={{ width: '100%', height: '120px', background: 'rgba(245,240,232,0.03)', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(245,240,232,0.06)' }}>
+                  <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '22px', fontStyle: 'italic', color: 'rgba(245,240,232,0.2)', textAlign: 'center', lineHeight: 1.2 }}>Editorial<br/>Report</div>
+                  <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '6px' }}>6 PAGES · PDF</div>
                 </div>
                 <p style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: product === 'analysis' ? '#C0001A' : 'rgba(245,240,232,0.6)', marginBottom: '4px' }}>
                   {String(t.prod1Title)}
@@ -185,18 +182,15 @@ export default function Home() {
                 }}
               >
                 {/* Poster preview */}
-                <div style={{ width: '100%', aspectRatio: '3/4', background: 'rgba(245,240,232,0.04)', marginBottom: '12px', overflow: 'hidden', position: 'relative' }}>
-                  <img src="/images/preview-poster.png" alt="Poster Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px' }}>
-                    <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '22px', fontStyle: 'italic', color: 'rgba(245,240,232,0.15)', textAlign: 'center', lineHeight: 1.2 }}>The Devil<br/>Wears Prada</div>
-                    <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '8px' }}>POSTER · PNG</div>
-                  </div>
+                <div style={{ width: '100%', height: '120px', background: 'rgba(245,240,232,0.03)', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(245,240,232,0.06)' }}>
+                  <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '22px', fontStyle: 'italic', color: 'rgba(245,240,232,0.2)', textAlign: 'center', lineHeight: 1.2 }}>The Devil<br/>Wears Prada</div>
+                  <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '6px' }}>POSTER · PNG</div>
                 </div>
                 <p style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: product === 'poster' ? '#C0001A' : 'rgba(245,240,232,0.6)', marginBottom: '4px' }}>
                   {String(t.prod2Title)}
                 </p>
                 <p style={{ fontSize: '10px', color: 'rgba(245,240,232,0.4)', marginBottom: '6px', lineHeight: 1.5 }}>{String(t.prod2Desc)}</p>
-                <p style={{ fontFamily: 'var(--font-cormorant)', fontSize: '20px', fontWeight: 300, color: 'var(--cream)' }}>USD 1.99</p>
+                <p style={{ fontFamily: 'var(--font-cormorant)', fontSize: '20px', fontWeight: 300, color: 'var(--cream)' }}>USD 2.99</p>
                 {product === 'poster' && (
                   <div style={{ position: 'absolute', top: '8px', right: '8px', width: '6px', height: '6px', borderRadius: '50%', background: '#C0001A' }} />
                 )}

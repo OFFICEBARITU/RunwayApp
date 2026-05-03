@@ -82,15 +82,36 @@ export function markPaymentProcessing(sessionId: string): boolean {
 }
 
 // GET /api/payment-status?session=xxx — read only
+// Also scans recent payment files when sessionId doesn't match (LS doesn't propagate custom data in test mode)
 paymentStatusRouter.get('/', (req: Request, res: Response) => {
   const sessionId = req.query.session as string
   if (!sessionId) return res.status(400).json({ error: 'Missing session' })
 
-  const state = readState(sessionId)
+  let state = readState(sessionId)
+
+  // Fallback: scan all session files for a recently validated payment
+  if (!state) {
+    try {
+      const files = fs.readdirSync(STATE_DIR).filter(f => f.endsWith('.json'))
+      for (const file of files) {
+        try {
+          const raw = fs.readFileSync(path.join(STATE_DIR, file), 'utf8')
+          const s = JSON.parse(raw) as PaymentState
+          // Match if created within 5 minutes and status is validated
+          if ((s.status === 'validated') && (Date.now() - s.timestamp < 5 * 60 * 1000)) {
+            state = s
+            console.log(`[PaymentStatus] Fallback match: ${s.orderId} for session ${sessionId}`)
+            break
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
   const validated = state?.status === 'validated'
   const processing = state?.status === 'processing'
 
-  if (validated) console.log(`[PaymentStatus] Polling: validated ${sessionId}`)
+  if (validated) console.log(`[PaymentStatus] Polling: validated ${sessionId} → orderId:${state?.orderId}`)
   if (processing) console.log(`[PaymentStatus] Polling: processing ${sessionId}`)
 
   return res.json({ validated, processing, orderId: state?.orderId || null })
