@@ -18,16 +18,14 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (_: any, file: any, cb: multer.FileFilterCallback) => {
-  const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp', 'image/tiff', 'image/avif']
+  const allowed = ['image/jpeg','image/jpg','image/png','image/webp','image/heic','image/heif','image/gif','image/bmp','image/tiff','image/avif']
   if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/')) cb(null, true)
   else cb(new Error('Invalid file type'))
 }
 
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
-})
+const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024, files: 1 } })
+
+export function registerValidatedPayment(_id: string) {}
 
 analyzeRouter.post(
   '/',
@@ -36,7 +34,7 @@ analyzeRouter.post(
     const uploadedFiles: string[] = []
     try {
       const { transactionId, lang = 'en' } = req.body
-      console.log(`[Analyze] Request — transactionId: ${transactionId}`)
+      console.log(`[FLOW] analyze start orderId=${transactionId}`)
 
       if (!transactionId) {
         return res.status(402).json({ error: 'Payment required.' })
@@ -45,33 +43,29 @@ analyzeRouter.post(
       const locked = markPaymentProcessing(transactionId)
       if (!locked) {
         if (process.env.NODE_ENV === 'production') {
-          console.error(`[Analyze] Gate failed: ${transactionId}`)
+          console.error(`[FLOW] analyze gate failed orderId=${transactionId}`)
           return res.status(409).json({ error: 'Payment not validated or already processing.' })
         }
         console.warn(`[DEV] Bypassing payment gate for: ${transactionId}`)
       }
 
-      console.log(`[Analyze] Processing started: ${transactionId}`)
-
       const files = req.files as Record<string, any[]>
       const img0 = files?.image0?.[0]
       if (!img0) return res.status(400).json({ error: 'Image is required.' })
 
-      const imagePaths = [img0.path]
-      uploadedFiles.push(...imagePaths)
+      uploadedFiles.push(img0.path)
 
-      const analysisResult = await runAnalysis(imagePaths)
+      const analysisResult = await runAnalysis([img0.path])
 
-      console.log('[Analyze] Generating PDF...')
+      console.log('[FLOW] generating PDF...')
       const reportUrl = await generatePDF({ ...analysisResult, lang })
       if (!reportUrl) throw new Error('PDF generation failed')
-      console.log(`[Analyze] PDF OK: ${reportUrl}`)
+      console.log(`[FLOW] PDF done: ${reportUrl}`)
 
-      await Promise.all(imagePaths.map(p => fs.promises.unlink(p).catch(() => {})))
+      await fs.promises.unlink(img0.path).catch(() => {})
 
-      if (locked && reportUrl) consumeValidatedPayment(transactionId)
+      if (locked) consumeValidatedPayment(transactionId)
 
-      console.log(`[Analyze] Done — pdf:${!!reportUrl}`)
       return res.json({ success: true, reportUrl })
 
     } catch (err: any) {

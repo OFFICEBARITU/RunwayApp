@@ -32,9 +32,7 @@ export default function PaymentModal({ t, product, price, checkoutUrl, onSuccess
           firedRef.current = true
           stopPolling()
           setStatus('processing')
-          // Use orderId from backend if available (when sessionId not propagated by LS)
-          const effectiveId = data.orderId || sessionId
-          setTimeout(() => onSuccess(effectiveId), 50)
+          setTimeout(() => onSuccess(sessionId), 50)
         }
       } catch {}
     }, 3000)

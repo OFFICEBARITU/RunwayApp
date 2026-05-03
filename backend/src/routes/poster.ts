@@ -17,16 +17,12 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (_: any, file: any, cb: multer.FileFilterCallback) => {
-  const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp', 'image/tiff', 'image/avif']
+  const allowed = ['image/jpeg','image/jpg','image/png','image/webp','image/heic','image/heif','image/gif','image/bmp','image/tiff','image/avif']
   if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/')) cb(null, true)
   else cb(new Error('Invalid file type'))
 }
 
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
-})
+const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024, files: 1 } })
 
 posterRouter.post(
   '/',
@@ -35,52 +31,38 @@ posterRouter.post(
     const uploadedFiles: string[] = []
     try {
       const { transactionId } = req.body
-      console.log(`[Poster] Request — transactionId: ${transactionId}`)
+      console.log(`[FLOW] poster start orderId=${transactionId}`)
 
-      if (!transactionId) {
-        return res.status(402).json({ error: 'Payment required.' })
-      }
+      if (!transactionId) return res.status(402).json({ error: 'Payment required.' })
 
       const locked = markPaymentProcessing(transactionId)
       if (!locked) {
         if (process.env.NODE_ENV === 'production') {
-          console.error(`[Poster] Gate failed: ${transactionId}`)
           return res.status(409).json({ error: 'Payment not validated or already processing.' })
         }
-        console.warn(`[DEV] Bypassing payment gate for: ${transactionId}`)
+        console.warn(`[DEV] Bypassing for: ${transactionId}`)
       }
-
-      console.log(`[Poster] Processing started: ${transactionId}`)
 
       const files = req.files as Record<string, any[]>
       const img0 = files?.image0?.[0]
       if (!img0) return res.status(400).json({ error: 'Image is required.' })
 
-      const imagePath = img0.path
-      uploadedFiles.push(imagePath)
+      uploadedFiles.push(img0.path)
 
-      // Read image as base64
-      const imageBuffer = fs.readFileSync(imagePath)
+      const imageBuffer = fs.readFileSync(img0.path)
       const imageBase64 = [`data:image/jpeg;base64,${imageBuffer.toString('base64')}`]
 
-      console.log('[Poster] Generating poster...')
-      const posterUrl = await generatePosterImage({
-        imageBase64,
-        colorimetry: null,
-        hairstyle: null,
-      })
-      console.log(`[Poster] OK: ${posterUrl}`)
+      const posterUrl = await generatePosterImage({ imageBase64, colorimetry: null, hairstyle: null })
 
-      await fs.promises.unlink(imagePath).catch(() => {})
-
-      if (locked && posterUrl) consumeValidatedPayment(transactionId)
+      await fs.promises.unlink(img0.path).catch(() => {})
+      if (locked) consumeValidatedPayment(transactionId)
 
       return res.json({ success: true, posterUrl })
 
     } catch (err: any) {
       await Promise.all(uploadedFiles.map(p => fs.promises.unlink(p).catch(() => {})))
       console.error('[Poster Error]', err.message)
-      return res.status(500).json({ error: 'Poster generation failed. Please try again.' })
+      return res.status(500).json({ error: 'Poster generation failed.' })
     }
   }
 )
