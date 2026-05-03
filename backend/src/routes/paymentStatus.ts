@@ -7,10 +7,13 @@ export const paymentStatusRouter = Router()
 const STATE_DIR = path.join(__dirname, '../../payment-state')
 if (!fs.existsSync(STATE_DIR)) fs.mkdirSync(STATE_DIR, { recursive: true })
 
+type PaymentStateStatus = 'validated' | 'processing' | 'consumed'
+
 interface PaymentState {
   orderId: string
   sessionId: string
   timestamp: number
+  status: PaymentStateStatus
 }
 
 function getStatePath(sessionId: string): string {
@@ -34,36 +37,61 @@ function readState(sessionId: string): PaymentState | null {
   }
 }
 
+function writeState(sessionId: string, state: PaymentState): void {
+  fs.writeFileSync(getStatePath(sessionId), JSON.stringify(state), 'utf8')
+}
+
 export function markPaymentValidated(orderId: string, sessionId?: string) {
   try {
     const id = sessionId || orderId
-    const state: PaymentState = { orderId, sessionId: id, timestamp: Date.now() }
-    fs.writeFileSync(getStatePath(id), JSON.stringify(state), 'utf8')
-    console.log(`[PaymentStatus] Written: sessionId=${id} orderId=${orderId}`)
+    const state: PaymentState = {
+      orderId,
+      sessionId: id,
+      timestamp: Date.now(),
+      status: 'validated',
+    }
+    writeState(id, state)
+    console.log(`[PaymentStatus] validated: sessionId=${id} orderId=${orderId}`)
   } catch (e) {
     console.error('[PaymentStatus] Write error:', e)
   }
 }
 
-// GET /api/payment-status?session=xxx — read only, never modifies state
+export function markPaymentProcessing(sessionId: string): boolean {
+  try {
+    const state = readState(sessionId)
+    if (!state || state.status !== 'validated') return false
+    state.status = 'processing'
+    writeState(sessionId, state)
+    console.log(`[PaymentStatus] processing: ${sessionId}`)
+    return true
+  } catch (e) {
+    console.error('[PaymentStatus] Processing mark error:', e)
+    return false
+  }
+}
+
+// GET /api/payment-status?session=xxx — read only
 paymentStatusRouter.get('/', (req: Request, res: Response) => {
   const sessionId = req.query.session as string
   if (!sessionId) return res.status(400).json({ error: 'Missing session' })
 
   const state = readState(sessionId)
-  const validated = !!state
 
-  if (validated) {
-    console.log(`[PaymentStatus] Polling validated: ${sessionId}`)
-  }
+  const validated = state?.status === 'validated'
+  const processing = state?.status === 'processing'
 
-  return res.json({ validated, orderId: state?.orderId || null })
+  if (validated) console.log(`[PaymentStatus] Polling: validated ${sessionId}`)
+  if (processing) console.log(`[PaymentStatus] Polling: processing ${sessionId}`)
+
+  return res.json({ validated, processing, orderId: state?.orderId || null })
 })
 
 export function isRecentPaymentValidated(sessionId: string): boolean {
   const state = readState(sessionId)
-  console.log(`[PaymentStatus] Validate check: ${sessionId} → ${!!state}`)
-  return !!state
+  const ok = state?.status === 'validated'
+  console.log(`[PaymentStatus] Check: ${sessionId} → status=${state?.status} ok=${ok}`)
+  return ok
 }
 
 export function consumeValidatedPayment(sessionId: string): void {

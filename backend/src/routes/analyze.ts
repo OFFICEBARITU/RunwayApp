@@ -6,7 +6,7 @@ import { v4 as uuid } from 'uuid'
 import { runAnalysis } from '../services/analysisService'
 import { generatePDF } from '../services/pdfService'
 import { generatePosterImage } from '../services/imageService'
-import { isRecentPaymentValidated, consumeValidatedPayment } from './paymentStatus'
+import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
 
 export const analyzeRouter = Router()
 
@@ -51,17 +51,18 @@ analyzeRouter.post(
         return res.status(402).json({ error: 'Payment required.' })
       }
 
-      const isValid = isRecentPaymentValidated(transactionId)
+      // Single gate: validates AND locks atomically (validated → processing)
+      const locked = markPaymentProcessing(transactionId)
 
-      if (!isValid) {
+      if (!locked) {
         if (process.env.NODE_ENV === 'production') {
-          console.error(`[Analyze] Payment NOT valid: ${transactionId}`)
-          return res.status(402).json({ error: 'Payment not validated.' })
+          console.error(`[Analyze] Gate failed (invalid or already processing): ${transactionId}`)
+          return res.status(409).json({ error: 'Payment not validated or already processing.' })
         }
-        console.warn(`[DEV] Bypassing payment validation for: ${transactionId}`)
+        console.warn(`[DEV] Bypassing payment gate for: ${transactionId}`)
       }
 
-      console.log(`[Analyze] Payment valid — proceeding`)
+      console.log(`[Analyze] Processing started: ${transactionId}`)
 
       const files = req.files as Record<string, any[]>
       const img0 = files?.image0?.[0]
@@ -75,33 +76,46 @@ analyzeRouter.post(
       const imagePaths = [img0.path, img1.path, img2.path]
       uploadedFiles.push(...imagePaths)
 
+      // ── AI ANALYSIS ─────────────────────────────────────────
       const analysisResult = await runAnalysis(imagePaths)
 
-      const [reportUrl, posterUrl] = await Promise.allSettled([
-        generatePDF({ ...analysisResult, lang }),
-        generatePosterImage({
+      // ── PDF (OBLIGATORIO) ────────────────────────────────────
+      console.log('[Analyze] Generating PDF...')
+      const reportUrl = await generatePDF({ ...analysisResult, lang })
+
+      if (!reportUrl) {
+        throw new Error('PDF generation failed — no URL returned')
+      }
+      console.log(`[Analyze] PDF OK: ${reportUrl}`)
+
+      // ── POSTER (OPCIONAL) ────────────────────────────────────
+      let posterUrl: string | null = null
+      try {
+        console.log('[Analyze] Generating poster...')
+        posterUrl = await generatePosterImage({
           imageBase64: analysisResult.imageBase64,
           colorimetry: analysisResult.colorimetry,
           hairstyle: analysisResult.hairstyle,
-        }),
-      ]).then(([pdfResult, posterResult]) => {
-        const pdf = pdfResult.status === 'fulfilled' ? pdfResult.value : null
-        const poster = posterResult.status === 'fulfilled' ? posterResult.value : null
-        if (pdfResult.status === 'rejected') console.error('[PDF Error]', pdfResult.reason?.message)
-        if (posterResult.status === 'rejected') console.error('[Poster Error]', posterResult.reason?.message)
-        return [pdf, poster]
-      })
+        })
+        console.log(`[Analyze] Poster OK: ${posterUrl}`)
+      } catch (posterErr: any) {
+        console.error('[Analyze] Poster failed (non-critical):', posterErr.message)
+        posterUrl = null
+      }
 
-      imagePaths.forEach(p => fs.unlink(p, () => {}))
+      // ── CLEANUP ──────────────────────────────────────────────
+      await Promise.all(imagePaths.map(p => fs.promises.unlink(p).catch(() => {})))
 
-      // Consume AFTER successful generation — pass sessionId
-      if (isValid) consumeValidatedPayment(transactionId)
+      // ── CONSUME — only after PDF confirmed ──────────────────
+      if (locked && reportUrl) {
+        consumeValidatedPayment(transactionId)
+      }
 
       console.log(`[Analyze] Done — pdf:${!!reportUrl} poster:${!!posterUrl}`)
       return res.json({ success: true, reportUrl, posterUrl })
 
     } catch (err: any) {
-      uploadedFiles.forEach(p => fs.unlink(p, () => {}))
+      await Promise.all(uploadedFiles.map(p => fs.promises.unlink(p).catch(() => {})))
       console.error('[Analyze Error]', err.message)
       return res.status(500).json({ error: 'Analysis failed. Please try again.' })
     }

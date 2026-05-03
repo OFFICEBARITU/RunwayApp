@@ -29,7 +29,8 @@ export default function PaymentModal({ t, onSuccess, onClose }: Props) {
         const res = await fetch(`${API}/api/payment-status?session=${sessionId}`)
         if (!res.ok) return
         const data = await res.json()
-        if (data.validated && !firedRef.current) {
+        // Stop polling if validated OR already processing (backend got it)
+        if ((data.validated || data.processing) && !firedRef.current) {
           firedRef.current = true
           stopPolling()
           setStatus('processing')
