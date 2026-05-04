@@ -104,20 +104,20 @@ posterRouter.post(
       const baseUrl = `${BACKEND_URL}/reports/${tempBaseFile}`
       const userUrl = `${BACKEND_URL}/reports/${tempUserFile}`
 
-      console.log(`[Poster] Submitting to Replicate codeplugtech/face-swap...`)
+      console.log(`[Poster] Submitting to Replicate cdingram/face-swap...`)
 
       // Submit to Replicate easel/advanced-face-swap
-      const submitRes = await fetch('https://api.replicate.com/v1/models/codeplugtech/face-swap/predictions', {
+      const submitRes = await fetch('https://api.replicate.com/v1/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${REPLICATE_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          version: 'd1d6ea8c8be89d664a07a457526f7128109dee7030fdac424788d762c71ed111',
           input: {
             swap_image: userUrl,
-            target_image: baseUrl,
-            hair_source: 'target',
+            input_image: baseUrl,
           },
         }),
       })

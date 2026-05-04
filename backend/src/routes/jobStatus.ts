@@ -71,7 +71,8 @@ async function checkReplicateStatus(predictionId: string): Promise<{ done: boole
 
     if (prediction.status === 'succeeded') {
       const output = prediction.output
-      const imageUrl = output?.image?.url || output?.url || (Array.isArray(output) ? output[0] : output)
+      // cdingram returns URL string directly
+      const imageUrl = typeof output === 'string' ? output : (Array.isArray(output) ? output[0] : output?.url)
       if (!imageUrl) return { done: true, error: 'No image URL in result' }
 
       const imgRes = await fetch(imageUrl)
