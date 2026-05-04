@@ -5,25 +5,8 @@ import fs from 'fs'
 import { v4 as uuid } from 'uuid'
 import sharp from 'sharp'
 import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
-import { createJob, setJobFalRequestId, failJob } from './jobStatus'
+import { createJob, setJobFalRequestId, failJob, completeJob } from './jobStatus'
 
-
-async function uploadToFalStorage(buffer: Buffer, filename: string): Promise<string> {
-  const formData = new FormData()
-  const blob = new Blob([buffer], { type: 'image/jpeg' })
-  formData.append('file', blob, filename)
-  const res = await fetch('https://fal.run/fal-ai/storage/upload', {
-    method: 'POST',
-    headers: { 'Authorization': `Key ${FAL_API_KEY}` },
-    body: formData,
-  })
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`fal storage upload failed: ${err}`)
-  }
-  const data = await res.json() as any
-  return data.url
-}
 
 export const posterRouter = Router()
 
@@ -85,7 +68,7 @@ posterRouter.post(
       const isMale = gender === 'male'
       console.log(`[Poster] Using easel-ai/advanced-face-swap — gender: ${gender}`)
 
-      // Resize and upload to fal.ai storage — face-swap needs public URLs
+      // Resize to base64 — kontext accepts base64 directly
       const baseBuffer = await sharp(BASEIMAGE_PATH)
         .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 85 })
@@ -95,36 +78,55 @@ posterRouter.post(
         .jpeg({ quality: 90 })
         .toBuffer()
 
-      console.log(`[Poster] Uploading to fal.ai storage...`)
-      const [baseUrl, userUrl] = await Promise.all([
-        uploadToFalStorage(baseBuffer, 'base.jpg'),
-        uploadToFalStorage(userBuffer, 'face.jpg'),
-      ])
-      console.log(`[Poster] Uploaded — base: ${baseUrl.slice(-30)}, user: ${userUrl.slice(-30)}`)
+      const baseDataUrl = `data:image/jpeg;base64,${baseBuffer.toString('base64')}`
+      const userDataUrl = `data:image/jpeg;base64,${userBuffer.toString('base64')}`
+      console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User: ${Math.round(userBuffer.length/1024)}KB`)
 
-      // Submit to fal.ai easel-ai/advanced-face-swap — don't wait for result
-      // face_image_0 = user face, target_image = BASEIMAGE poster
-      const submitRes = await fetch('https://queue.fal.run/easel-ai/advanced-face-swap', {
+      // Submit to Replicate lucataco/faceswap
+      const REPLICATE_KEY = process.env.REPLICATE_API_KEY
+      const submitRes = await fetch('https://api.replicate.com/v1/models/lucataco/faceswap/predictions', {
         method: 'POST',
-        headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${REPLICATE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'wait=30',
+        },
         body: JSON.stringify({
-          face_image_0: userUrl,
-          gender_0: isMale ? 'male' : 'female',
-          target_image: baseUrl,
-          workflow_type: 'user_hair',
-          upscale: true,
+          input: {
+            target_image: baseDataUrl,
+            swap_image: userDataUrl,
+          }
         }),
       })
 
       if (!submitRes.ok) {
         const err = await submitRes.text()
-        throw new Error(`fal.ai submit failed: ${err}`)
+        throw new Error(`Replicate submit failed: ${err}`)
       }
 
-      const { request_id } = await submitRes.json() as any
-      console.log(`[Poster] Submitted request_id=${request_id}`)
+      const prediction = await submitRes.json() as any
+      const request_id = prediction.id
+      console.log(`[Poster] Replicate submitted id=${request_id} status=${prediction.status}`)
 
-      // Create job with fal request_id stored — polling will check fal directly
+      // If already done (Prefer: wait=30 may return synchronously)
+      if (prediction.status === 'succeeded' && prediction.output) {
+        const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
+        const imgRes = await fetch(imageUrl)
+        const raw = Buffer.from(await imgRes.arrayBuffer())
+        const final = await sharp(raw).resize(1080, 1920, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer()
+        const filename = `poster-${uuid()}.jpg`
+        fs.writeFileSync(path.join(REPORTS_DIR, filename), final)
+        const posterUrl = `/reports/${filename}`
+        const jobId = uuid()
+        createJob(jobId)
+        completeJob(jobId, { posterUrl })
+        if (locked) consumeValidatedPayment(transactionId)
+        await fs.promises.unlink(img0.path).catch(() => {})
+        console.log(`[Poster] Completed synchronously: ${filename}`)
+        return res.json({ success: true, jobId })
+      }
+
+      // Create job — polling will check Replicate directly
       const jobId = uuid()
       createJob(jobId)
       setJobFalRequestId(jobId, request_id, transactionId)
@@ -132,7 +134,6 @@ posterRouter.post(
       await fs.promises.unlink(img0.path).catch(() => {})
       if (locked) consumeValidatedPayment(transactionId)
 
-      // Respond immediately
       res.json({ success: true, jobId })
 
     } catch (err: any) {

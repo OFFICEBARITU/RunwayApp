@@ -11,7 +11,6 @@ const REPORTS_DIR = path.join(__dirname, '../../reports')
 if (!fs.existsSync(JOBS_DIR)) fs.mkdirSync(JOBS_DIR, { recursive: true })
 if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true })
 
-const FAL_API_KEY = process.env.FAL_API_KEY
 
 interface JobState {
   status: 'processing' | 'done' | 'error'
@@ -59,26 +58,23 @@ export function failJob(jobId: string, error: string): void {
   console.log(`[Job] Failed: ${jobId} — ${error}`)
 }
 
-// Check fal.ai status and download result if completed
-async function checkFalStatus(falRequestId: string): Promise<{ done: boolean; posterUrl?: string; error?: string }> {
+const REPLICATE_KEY = process.env.REPLICATE_API_KEY
+
+// Check Replicate status and download result if completed
+async function checkReplicateStatus(predictionId: string): Promise<{ done: boolean; posterUrl?: string; error?: string }> {
   try {
-    const statusUrl = `https://queue.fal.run/easel-ai/advanced-face-swap/requests/${falRequestId}/status`
-    const res = await fetch(statusUrl, { headers: { 'Authorization': `Key ${FAL_API_KEY}` } })
+    const res = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+      headers: { 'Authorization': `Bearer ${REPLICATE_KEY}` }
+    })
     if (!res.ok) return { done: false }
 
-    const status = await res.json() as any
-    console.log(`[Job] fal.ai status: ${status.status} for request ${falRequestId}`)
+    const prediction = await res.json() as any
+    console.log(`[Job] Replicate status: ${prediction.status} for ${predictionId}`)
 
-    if (status.status === 'COMPLETED') {
-      // Get result
-      const resultRes = await fetch(`https://queue.fal.run/easel-ai/advanced-face-swap/requests/${falRequestId}`, {
-        headers: { 'Authorization': `Key ${FAL_API_KEY}` }
-      })
-      const result = await resultRes.json() as any
-      const imageUrl = result?.image?.url || result?.images?.[0]?.url
+    if (prediction.status === 'succeeded') {
+      const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
       if (!imageUrl) return { done: true, error: 'No image URL in result' }
 
-      // Download and save
       const imgRes = await fetch(imageUrl)
       if (!imgRes.ok) return { done: true, error: 'Failed to download poster' }
       const raw = Buffer.from(await imgRes.arrayBuffer())
@@ -89,23 +85,23 @@ async function checkFalStatus(falRequestId: string): Promise<{ done: boolean; po
       return { done: true, posterUrl: `/reports/${filename}` }
     }
 
-    if (status.status === 'FAILED') {
-      return { done: true, error: `fal.ai job failed` }
+    if (prediction.status === 'failed' || prediction.status === 'canceled') {
+      return { done: true, error: `Replicate job ${prediction.status}: ${prediction.error || ''}` }
     }
 
     return { done: false }
   } catch (e: any) {
-    console.error('[Job] fal.ai check error:', e.message)
+    console.error('[Job] Replicate check error:', e.message)
     return { done: false }
   }
 }
 
-// GET /api/job-status/fal?requestId=xxx — check fal.ai directly by request_id
+// GET /api/job-status/fal?requestId=xxx — check Replicate directly by prediction id
 jobStatusRouter.get('/fal', async (req: Request, res: Response) => {
-  const falRequestId = req.query.requestId as string
-  if (!falRequestId) return res.status(400).json({ error: 'Missing requestId' })
+  const predictionId = req.query.requestId as string
+  if (!predictionId) return res.status(400).json({ error: 'Missing requestId' })
   try {
-    const result = await checkFalStatus(falRequestId)
+    const result = await checkReplicateStatus(predictionId)
     return res.json(result)
   } catch (e: any) {
     return res.json({ done: false, error: e.message })
@@ -129,7 +125,7 @@ jobStatusRouter.get('/', async (req: Request, res: Response) => {
 
     // If has fal request_id, check fal.ai directly
     if (state.falRequestId) {
-      const falResult = await checkFalStatus(state.falRequestId)
+      const falResult = await checkReplicateStatus(state.falRequestId)
       if (falResult.done) {
         if (falResult.posterUrl) {
           const newState = { ...state, status: 'done' as const, posterUrl: falResult.posterUrl }
