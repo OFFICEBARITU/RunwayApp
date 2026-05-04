@@ -18,7 +18,7 @@ const REPORTS_DIR = path.join(__dirname, '../../reports')
 
 function getBaseImagePath(isMale: boolean): string {
   if (isMale) return path.join(ASSETS_DIR, 'BASEIMAGE_MALE.jpg')
-  const female = ['BASEIMAGE_FEMALE_RED.jpg', 'BASEIMAGE_FEMALE_GREEN.jpg', 'BASEIMAGE_FEMALE_PURPLE.jpg']
+  const female = ['BASEIMAGE_FEMALE_RED.jpg', 'BASEIMAGE_FEMALE_GREEN.jpg', 'BASEIMAGE_FEMALE_BLACK.jpg']
   return path.join(ASSETS_DIR, female[Math.floor(Math.random() * female.length)])
 }
 if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true })
