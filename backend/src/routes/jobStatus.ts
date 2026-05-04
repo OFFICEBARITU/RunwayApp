@@ -62,7 +62,7 @@ export function failJob(jobId: string, error: string): void {
 // Check fal.ai status and download result if completed
 async function checkFalStatus(falRequestId: string): Promise<{ done: boolean; posterUrl?: string; error?: string }> {
   try {
-    const statusUrl = `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${falRequestId}/status`
+    const statusUrl = `https://queue.fal.run/easel-ai/advanced-face-swap/requests/${falRequestId}/status`
     const res = await fetch(statusUrl, { headers: { 'Authorization': `Key ${FAL_API_KEY}` } })
     if (!res.ok) return { done: false }
 
@@ -71,11 +71,11 @@ async function checkFalStatus(falRequestId: string): Promise<{ done: boolean; po
 
     if (status.status === 'COMPLETED') {
       // Get result
-      const resultRes = await fetch(`https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${falRequestId}`, {
+      const resultRes = await fetch(`https://queue.fal.run/easel-ai/advanced-face-swap/requests/${falRequestId}`, {
         headers: { 'Authorization': `Key ${FAL_API_KEY}` }
       })
       const result = await resultRes.json() as any
-      const imageUrl = result?.images?.[0]?.url
+      const imageUrl = result?.image?.url || result?.images?.[0]?.url
       if (!imageUrl) return { done: true, error: 'No image URL in result' }
 
       // Download and save

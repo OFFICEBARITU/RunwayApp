@@ -65,11 +65,7 @@ posterRouter.post(
       } catch {}
 
       const isMale = gender === 'male'
-
-      // flux-pro/kontext optimized prompt: be explicit about face swap, position, clothing
-      const prompt = isMale
-        ? `This is The Devil Wears Prada 2 movie poster. Add a new male character seated on the white marble stairs, positioned between Stanley Tucci and the right side. The new male character must have EXACTLY the same face, hair, skin tone, and facial features as the person shown in the second reference image. He wears a sharp black formal tuxedo with white dress shirt and black bow tie. His posture is confident and elegant. Do NOT change Meryl Streep, Anne Hathaway, Emily Blunt, or Stanley Tucci. Do NOT alter the title text THE DEVIL WEARS PRADA 2. Do NOT change the marble staircase or background. The result must look like a professional Hollywood movie poster photograph, photorealistic, cinematic lighting.`
-        : `This is The Devil Wears Prada 2 movie poster. Add a new female character standing on the white marble stairs on the far left side, next to Anne Hathaway. The new female character must have EXACTLY the same face, hair, skin tone, and facial features as the person shown in the second reference image. She wears an elegant floor-length gala dress in a complementary color. Her posture is confident and glamorous. Do NOT change Meryl Streep, Anne Hathaway, Emily Blunt, or Stanley Tucci. Do NOT alter the title text THE DEVIL WEARS PRADA 2. Do NOT change the marble staircase or background. The result must look like a professional Hollywood movie poster photograph, photorealistic, cinematic lighting.`
+      console.log(`[Poster] Using easel-ai/advanced-face-swap — gender: ${gender}`)
 
       // Resize images - kontext works best with clear face reference
       const baseBuffer = await sharp(BASEIMAGE_PATH)
@@ -86,19 +82,17 @@ posterRouter.post(
       const userDataUrl = `data:image/jpeg;base64,${userBuffer.toString('base64')}`
       console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User face: ${Math.round(userBuffer.length/1024)}KB`)
 
-      // Submit to fal.ai — don't wait for result
-      const submitRes = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
+      // Submit to fal.ai easel-ai/advanced-face-swap — don't wait for result
+      // face_image_0 = user face, target_image = BASEIMAGE poster
+      const submitRes = await fetch('https://queue.fal.run/easel-ai/advanced-face-swap', {
         method: 'POST',
         headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt,
-          image_url: baseDataUrl,
-          image_urls: [userDataUrl],
-          num_inference_steps: 28,
-          guidance_scale: 4.0,
-          num_images: 1,
-          output_format: 'jpeg',
-          safety_tolerance: '2',
+          face_image_0: userDataUrl,
+          gender_0: isMale ? 'male' : 'female',
+          target_image: baseDataUrl,
+          workflow_type: 'user_hair',
+          upscale: true,
         }),
       })
 
