@@ -58,13 +58,11 @@ export function failJob(jobId: string, error: string): void {
   console.log(`[Job] Failed: ${jobId} — ${error}`)
 }
 
-const REPLICATE_KEY = process.env.REPLICATE_API_KEY
-
 // Check Replicate status and download result if completed
 async function checkReplicateStatus(predictionId: string): Promise<{ done: boolean; posterUrl?: string; error?: string }> {
   try {
     const res = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
-      headers: { 'Authorization': `Bearer ${REPLICATE_KEY}` }
+      headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}` }
     })
     if (!res.ok) return { done: false }
 
@@ -72,13 +70,17 @@ async function checkReplicateStatus(predictionId: string): Promise<{ done: boole
     console.log(`[Job] Replicate status: ${prediction.status} for ${predictionId}`)
 
     if (prediction.status === 'succeeded') {
-      const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output
+      const output = prediction.output
+      const imageUrl = output?.image?.url || output?.url || (Array.isArray(output) ? output[0] : output)
       if (!imageUrl) return { done: true, error: 'No image URL in result' }
 
       const imgRes = await fetch(imageUrl)
       if (!imgRes.ok) return { done: true, error: 'Failed to download poster' }
       const raw = Buffer.from(await imgRes.arrayBuffer())
-      const final = await sharp(raw).resize(1080, 1920, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer()
+      const final = await sharp(raw)
+        .resize(1080, 1920, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer()
       const filename = `poster-${uuid()}.jpg`
       fs.writeFileSync(path.join(REPORTS_DIR, filename), final)
       console.log(`[Job] Poster saved: ${filename} (${Math.round(final.length / 1024)}KB)`)
@@ -86,7 +88,7 @@ async function checkReplicateStatus(predictionId: string): Promise<{ done: boole
     }
 
     if (prediction.status === 'failed' || prediction.status === 'canceled') {
-      return { done: true, error: `Replicate job ${prediction.status}: ${prediction.error || ''}` }
+      return { done: true, error: `Replicate ${prediction.status}: ${prediction.error || ''}` }
     }
 
     return { done: false }
