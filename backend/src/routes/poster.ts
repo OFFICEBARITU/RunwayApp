@@ -7,6 +7,24 @@ import sharp from 'sharp'
 import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
 import { createJob, setJobFalRequestId, failJob } from './jobStatus'
 
+
+async function uploadToFalStorage(buffer: Buffer, filename: string): Promise<string> {
+  const formData = new FormData()
+  const blob = new Blob([buffer], { type: 'image/jpeg' })
+  formData.append('file', blob, filename)
+  const res = await fetch('https://fal.run/fal-ai/storage/upload', {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${FAL_API_KEY}` },
+    body: formData,
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`fal storage upload failed: ${err}`)
+  }
+  const data = await res.json() as any
+  return data.url
+}
+
 export const posterRouter = Router()
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads')
@@ -67,20 +85,22 @@ posterRouter.post(
       const isMale = gender === 'male'
       console.log(`[Poster] Using easel-ai/advanced-face-swap — gender: ${gender}`)
 
-      // Resize images - kontext works best with clear face reference
+      // Resize and upload to fal.ai storage — face-swap needs public URLs
       const baseBuffer = await sharp(BASEIMAGE_PATH)
         .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 85 })
         .toBuffer()
-      // Crop user image to focus on face
       const userBuffer = await sharp(img0.path)
         .resize(768, 768, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 90 })
         .toBuffer()
 
-      const baseDataUrl = `data:image/jpeg;base64,${baseBuffer.toString('base64')}`
-      const userDataUrl = `data:image/jpeg;base64,${userBuffer.toString('base64')}`
-      console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User face: ${Math.round(userBuffer.length/1024)}KB`)
+      console.log(`[Poster] Uploading to fal.ai storage...`)
+      const [baseUrl, userUrl] = await Promise.all([
+        uploadToFalStorage(baseBuffer, 'base.jpg'),
+        uploadToFalStorage(userBuffer, 'face.jpg'),
+      ])
+      console.log(`[Poster] Uploaded — base: ${baseUrl.slice(-30)}, user: ${userUrl.slice(-30)}`)
 
       // Submit to fal.ai easel-ai/advanced-face-swap — don't wait for result
       // face_image_0 = user face, target_image = BASEIMAGE poster
@@ -88,9 +108,9 @@ posterRouter.post(
         method: 'POST',
         headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          face_image_0: userDataUrl,
+          face_image_0: userUrl,
           gender_0: isMale ? 'male' : 'female',
-          target_image: baseDataUrl,
+          target_image: baseUrl,
           workflow_type: 'user_hair',
           upscale: true,
         }),
