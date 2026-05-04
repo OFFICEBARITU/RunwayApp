@@ -15,6 +15,8 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../')
 const BASEIMAGE_PATH = path.join(PROJECT_ROOT, 'src/assets/BASEIMAGE.png')
+const REPORTS_DIR = path.join(__dirname, '../../reports')
+if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true })
 const FAL_API_KEY = process.env.FAL_API_KEY
 
 const storage = multer.diskStorage({
