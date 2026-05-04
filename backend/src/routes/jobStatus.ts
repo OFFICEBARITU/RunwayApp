@@ -71,8 +71,15 @@ async function checkReplicateStatus(predictionId: string): Promise<{ done: boole
 
     if (prediction.status === 'succeeded') {
       const output = prediction.output
-      // cdingram returns URL string directly
-      const imageUrl = typeof output === 'string' ? output : (Array.isArray(output) ? output[0] : output?.url)
+      console.log(`[Job] Replicate output type: ${typeof output}, value: ${JSON.stringify(output)?.slice(0, 200)}`)
+      // xiankgx returns a FileOutput object - try all possible formats
+      const imageUrl = typeof output === 'string' ? output 
+        : Array.isArray(output) ? output[0]
+        : output?.url
+        || output?.image
+        || output?.output
+        || null
+      console.log(`[Job] Extracted imageUrl: ${imageUrl?.toString?.()?.slice(0, 100)}`)
       if (!imageUrl) return { done: true, error: 'No image URL in result' }
 
       const imgRes = await fetch(imageUrl)
