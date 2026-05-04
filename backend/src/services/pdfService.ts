@@ -15,22 +15,45 @@ function hexToRgb(hex: string) {
   return `rgb(${r},${g},${b})`
 }
 
-// FIX: return type corregido de :string a :Promise<string> — la función es async
-// y TypeScript compilaba con error en modo estricto
 async function generateReportHTML(data: {
   colorimetry: any
   hairstyle: any
   imageBase64: string[]
   lang: string
   referenceImages?: { hairstyles: (string|null)[]; outfits: (string|null)[] }
-}): Promise<string> {
+}): string {
   const { colorimetry: c, hairstyle: h, imageBase64: imgs, referenceImages: refs } = data
   const refHairstyles = refs?.hairstyles || []
   const refOutfits = refs?.outfits || []
 
-  // FIX: imageBase64 ya llega pre-resizeada desde analysisService (400x500px, ~30KB).
-  // El resize adicional aquí era redundante y duplicaba memoria. Se usa directamente.
-  const resizedImgs = imgs
+  // Labels by language
+  const L: Record<string, string> = {
+    personalImage: lang === 'es' ? 'Imagen Personal' : lang === 'pt' ? 'Imagem Pessoal' : lang === 'fr' ? 'Image Personnelle' : 'Personal Image',
+    premiumAdvisor: lang === 'es' ? 'Asesor de Imagen Premium' : lang === 'pt' ? 'Consultor de Imagem Premium' : lang === 'fr' ? 'Conseiller Image Premium' : 'Premium Image Advisor',
+    editorialGuide: lang === 'es' ? 'Guía editorial de imagen' : lang === 'pt' ? 'Guia editorial de imagem' : lang === 'fr' ? 'Guide éditorial d'image' : 'Editorial image guide',
+    favorableColors: lang === 'es' ? 'Colores Favorables' : lang === 'pt' ? 'Cores Favoráveis' : lang === 'fr' ? 'Couleurs Favorables' : 'Favorable Colors',
+    avoidColors: lang === 'es' ? 'Colores a Evitar' : lang === 'pt' ? 'Cores a Evitar' : lang === 'fr' ? 'Couleurs à Éviter' : 'Colors to Avoid',
+    favorable: lang === 'es' ? '✓ Favorables' : lang === 'pt' ? '✓ Favoráveis' : lang === 'fr' ? '✓ Favorables' : '✓ Favorable',
+    avoid: lang === 'es' ? '✗ Evitar' : lang === 'pt' ? '✗ Evitar' : lang === 'fr' ? '✗ Éviter' : '✗ Avoid',
+    yourSeason: lang === 'es' ? 'Tu Estación' : lang === 'pt' ? 'Sua Estação' : lang === 'fr' ? 'Votre Saison' : 'Your Season',
+    ranking: lang === 'es' ? '★ Ranking Top' : lang === 'pt' ? '★ Ranking Top' : lang === 'fr' ? '★ Classement Top' : '★ Top Ranking',
+    styleGuide: lang === 'es' ? 'Guía de Estilo' : lang === 'pt' ? 'Guia de Estilo' : lang === 'fr' ? 'Guide de Style' : 'Style Guide',
+    dos: lang === 'es' ? 'Lo que funciona' : lang === 'pt' ? 'O que funciona' : lang === 'fr' ? 'Ce qui marche' : 'What works',
+    donts: lang === 'es' ? 'Lo que evitar' : lang === 'pt' ? 'O que evitar' : lang === 'fr' ? 'Ce qu'il faut éviter' : 'What to avoid',
+  }
+
+  // Resize user image to thumbnail to prevent OOM in Puppeteer
+  const resizedImgs = await Promise.all(imgs.map(async (img) => {
+    try {
+      const base64Data = img.replace(/^data:image\/\w+;base64,/, '')
+      const buf = Buffer.from(base64Data, 'base64')
+      const resized = await sharp(buf)
+        .resize(200, 250, { fit: 'cover', position: 'top' })
+        .jpeg({ quality: 60 })
+        .toBuffer()
+      return `data:image/jpeg;base64,${resized.toString('base64')}`
+    } catch { return img }
+  }))
 
   const bestColors = (c.colorAnalysis?.bestColors || []).slice(0, 8)
   const avoidColors = (c.colorAnalysis?.avoidColors || []).slice(0, 4)
@@ -85,7 +108,7 @@ body {
   width: 72px;
   height: 88px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
   flex-shrink: 0;
   filter: grayscale(20%);
 }
@@ -172,7 +195,7 @@ body {
   width: 100%;
   height: 52px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
   margin-bottom: 4px;
   filter: grayscale(30%);
 }
@@ -239,7 +262,7 @@ body {
   width: 44px;
   height: 54px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
 }
 
 .color-overlay {
@@ -253,7 +276,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
 }
 
 .color-overlay .color-tint {
@@ -402,7 +425,7 @@ body {
   width: 100%;
   height: 62px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
   filter: grayscale(60%);
   opacity: 0.7;
 }
@@ -462,7 +485,7 @@ body {
   width: 100%;
   height: 64px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
 }
 
 .favorable-name {
@@ -553,7 +576,7 @@ body {
   width: 22px;
   height: 22px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
   flex-shrink: 0;
 }
 
@@ -586,7 +609,7 @@ body {
   width: 100%;
   height: 80px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center top;
 }
 
 .glowup-label {
@@ -803,7 +826,7 @@ body {
     <div class="header-text">
       <div class="brand">Runway</div>
       <h1>Análisis<br>Visual</h1>
-      <p class="section-label">Imagen Personal</p>
+      <p class="section-label">${L.personalImage}</p>
       <div class="badge-row">
         <span class="badge">${c.faceShape || h.faceShape || 'Oval'}</span>
         <span class="badge">${c.skinUndertone || 'Neutral'}</span>
@@ -838,7 +861,7 @@ body {
           ${bestColors.map((hex: string, i: number) => `
             <div style="text-align:center;width:36px;">
               <div style="position:relative;width:36px;height:44px;overflow:hidden;">
-                <img src="${resizedImgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center 20%;"/>
+                <img src="${resizedImgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center top;"/>
                 <div style="position:absolute;inset:0;background:${hex};opacity:0.65;mix-blend-mode:multiply;"></div>
               </div>
               <div style="width:7px;height:7px;border-radius:50%;background:${hex};margin:2px auto 1px;"></div>
@@ -853,7 +876,7 @@ body {
           ${avoidColors.map((hex: string, i: number) => `
             <div style="text-align:center;width:36px;">
               <div style="position:relative;width:36px;height:44px;overflow:hidden;">
-                <img src="${resizedImgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center 20%;filter:grayscale(40%)"/>
+                <img src="${resizedImgs[0]}" style="width:100%;height:100%;object-fit:cover;object-position:center top;filter:grayscale(40%)"/>
                 <div style="position:absolute;inset:0;background:${hex};opacity:0.7;mix-blend-mode:multiply;"></div>
               </div>
               <div style="width:7px;height:7px;border-radius:50%;background:${hex};margin:2px auto 1px;"></div>
@@ -926,7 +949,7 @@ body {
     <div>
       <div class="brand">Runway</div>
       <h2 style="font-family:'Georgia',serif;font-size:20px;font-style:italic;font-weight:300;color:#F2EDE4;margin-bottom:5px;">Análisis<br>de Peinados</h2>
-      <p class="section-label">Asesor de Imagen Premium</p>
+      <p class="section-label">${L.premiumAdvisor}</p>
     </div>
   </div>
 
@@ -1026,9 +1049,9 @@ body {
     <div>
       <div class="brand">Runway</div>
       <h2 style="font-family:'Georgia',serif;font-size:22px;font-style:italic;font-weight:300;color:#F2EDE4;margin-bottom:5px;">Estilo<br>Personal</h2>
-      <p class="section-label">Guía editorial de imagen</p>
+      <p class="section-label">${L.editorialGuide}</p>
     </div>
-    <img src="${resizedImgs[1] || resizedImgs[0]}" style="width:72px;height:88px;object-fit:cover;object-position:center 20%;filter:grayscale(20%);" alt="Style" />
+    <img src="${resizedImgs[1] || resizedImgs[0]}" style="width:72px;height:88px;object-fit:cover;object-position:center top;filter:grayscale(20%);" alt="Style" />
   </div>
 
   <!-- Analysis badges -->
@@ -1267,7 +1290,7 @@ body {
   <!-- User photo + final verdict -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:#080808;border-top:0.5px solid rgba(242,237,228,0.06);">
     <div style="padding:12px 14px;border-right:0.5px solid rgba(242,237,228,0.06);">
-      <img src="${resizedImgs[2] ?? resizedImgs[1] ?? resizedImgs[0]}" style="width:100%;height:110px;object-fit:cover;object-position:center 20%;" />
+      <img src="${resizedImgs[2] || resizedImgs[0]}" style="width:100%;height:110px;object-fit:cover;object-position:center top;" />
     </div>
     <div style="padding:12px 14px;display:flex;flex-direction:column;justify-content:center;">
       <p style="font-size:6px;letter-spacing:0.4em;text-transform:uppercase;color:rgba(242,237,228,0.3);margin-bottom:6px;">Veredicto editorial</p>
@@ -1300,7 +1323,7 @@ body {
       ${(c.outfitStyles || []).slice(0,4).map((cat: any, i: number) => `
         <div style="background:#111;border:0.5px solid rgba(242,237,228,0.08);overflow:hidden;">
           ${refOutfits[i]
-            ? `<img src="${refOutfits[i]}" style="width:100%;height:110px;object-fit:cover;object-position:center 20%;" />`
+            ? `<img src="${refOutfits[i]}" style="width:100%;height:110px;object-fit:cover;object-position:center top;" />`
             : `<div style="width:100%;height:110px;background:linear-gradient(135deg,#1a1a1a,#0e0e0e);display:flex;align-items:center;justify-content:center;">
                 <div style="text-align:center;">
                   <div style="font-size:20px;color:rgba(242,237,228,0.1);margin-bottom:4px;">◻</div>
@@ -1410,19 +1433,12 @@ export async function generatePDF(data: {
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 })
     await new Promise(r => setTimeout(r, 500))
 
-    // FIX: timeout explícito de 60s para page.pdf() — sin esto Puppeteer puede
-    // colgar indefinidamente bajo carga, bloqueando el proceso background
-    await Promise.race([
-      page.pdf({
-        path: outputPath,
-        width: '390px',
-        printBackground: true,
-        margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Puppeteer PDF generation timed out after 60s')), 60000)
-      ),
-    ])
+    await page.pdf({
+      path: outputPath,
+      width: '390px',
+      printBackground: true,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    })
   } finally {
     await browser.close()
   }

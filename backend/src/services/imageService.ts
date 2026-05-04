@@ -10,27 +10,6 @@ const PROJECT_ROOT = path.resolve(__dirname, '../../')
 const BASEIMAGE_PATH = path.join(PROJECT_ROOT, 'src/assets/BASEIMAGE.png')
 const FAL_API_KEY = process.env.FAL_API_KEY
 
-// Upload image buffer to fal.ai storage → returns public URL
-async function uploadToFal(buffer: Buffer, filename: string, mimeType = 'image/jpeg'): Promise<string> {
-  const blob = new Blob([buffer], { type: mimeType })
-  const formData = new FormData()
-  formData.append('file', blob, filename)
-
-  const res = await fetch('https://fal.run/fal-ai/storage/upload', {
-    method: 'POST',
-    headers: { 'Authorization': `Key ${FAL_API_KEY}` },
-    body: formData,
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`fal.ai upload failed: ${err}`)
-  }
-
-  const data = await res.json() as any
-  return data.url
-}
-
 export async function generatePosterImage(data: {
   imageBase64: string[]
   colorimetry: any
@@ -50,28 +29,24 @@ export async function generatePosterImage(data: {
 
   const prompt = `Movie poster photo editing. The Devil Wears Prada 2 poster. Meryl Streep top center in red dress, Anne Hathaway left in white suit, Emily Blunt right in black dress, Stanley Tucci seated bottom center. Task: ${genderInstructions} Rules: preserve exact face from reference, keep all original cast untouched, keep all text and title intact, no watermarks, photorealistic result.`
 
-  // Resize BASEIMAGE to 1080px
+  // Resize BASEIMAGE to 768px — smaller = faster fal.ai processing
   const baseBuffer = await sharp(BASEIMAGE_PATH)
-    .resize(1080, 1920, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 80 })
+    .resize(768, 1024, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 75 })
     .toBuffer()
 
-  // Resize user image to 512px for face reference — smaller = faster
+  // Resize user image to 512px for face reference
   const userRaw = imageBase64[0].replace(/^data:image\/\w+;base64,/, '')
   const userBuffer = await sharp(Buffer.from(userRaw, 'base64'))
     .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85 })
+    .jpeg({ quality: 80 })
     .toBuffer()
 
-  console.log(`[Poster] User face: resized to 512px, base: 1080px`)
+  const baseDataUrl = `data:image/jpeg;base64,${baseBuffer.toString('base64')}`
+  const userDataUrl = `data:image/jpeg;base64,${userBuffer.toString('base64')}`
 
-  // Upload both to fal.ai storage for fast processing
-  console.log('[Poster] Uploading images to fal.ai storage...')
-  const [baseUrl, userUrl] = await Promise.all([
-    uploadToFal(baseBuffer, 'base.jpg'),
-    uploadToFal(userBuffer, 'face.jpg'),
-  ])
-  console.log('[Poster] Upload done, submitting to flux-pro/kontext...')
+  console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User: ${Math.round(userBuffer.length/1024)}KB`)
+  console.log('[Poster] Submitting to fal-ai/flux-pro/kontext...')
 
   const submitRes = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
     method: 'POST',
@@ -81,9 +56,9 @@ export async function generatePosterImage(data: {
     },
     body: JSON.stringify({
       prompt,
-      image_url: baseUrl,
-      image_urls: [userUrl],
-      num_inference_steps: 16,   // reduced for speed
+      image_url: baseDataUrl,
+      image_urls: [userDataUrl],
+      num_inference_steps: 16,
       guidance_scale: 3.0,
       num_images: 1,
       output_format: 'jpeg',
@@ -99,7 +74,6 @@ export async function generatePosterImage(data: {
   const { request_id } = await submitRes.json() as any
   console.log(`[Poster] Submitted request_id=${request_id}`)
 
-  // Poll — 4 min max
   const resultUrl = await pollFalResult(request_id, 240000)
   console.log(`[Poster] Completed, downloading...`)
 

@@ -352,10 +352,14 @@ async function callClaude(prompt: string, imagePaths: string[]): Promise<string>
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
 export async function runAnalysis(imagePaths: string[], lang: string = 'en'): Promise<AnalysisResult> {
-  const langInstruction = lang === 'es' ? '\n\nIMPORTANT: All text fields in the JSON must be written in Spanish (es). Only exception: hex codes and technical measurements stay in English.'
-    : lang === 'pt' ? '\n\nIMPORTANT: All text fields in the JSON must be written in Portuguese (pt). Only exception: hex codes and technical measurements stay in English.'
-    : lang === 'fr' ? '\n\nIMPORTANT: All text fields in the JSON must be written in French (fr). Only exception: hex codes and technical measurements stay in English.'
-    : ''
+  const langMap: Record<string, string> = {
+    es: 'Spanish',
+    pt: 'Portuguese (Brazilian)',
+    fr: 'French',
+    en: 'English',
+  }
+  const targetLang = langMap[lang] || 'English'
+  const langInstruction = `\n\n═══ LANGUAGE REQUIREMENT — MANDATORY ═══\nYou MUST write ALL descriptive text fields in ${targetLang}.\nThis is NON-NEGOTIABLE. Every string value in the JSON must be in ${targetLang}.\nDo NOT mix languages. Do NOT use English if the target is not English.\nOnly exceptions: hex color codes (#ffffff), numeric values, and technical measurements.\nIf you respond in the wrong language, the output will be rejected.\n═══════════════════════════════════════`
   
   const genderInstruction = '\n\nGENDER DETECTION: First determine if the person in the photo is male or female. Add a \"gender\" field to the root of your JSON with value \"male\" or \"female\". Adjust ALL recommendations accordingly — hairstyles, makeup, clothing, and accessories must be appropriate for the detected gender.'
 
