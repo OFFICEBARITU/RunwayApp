@@ -84,7 +84,7 @@ posterRouter.post(
         })
         const gData: any = await gRes.json()
         const gText = gData.content?.[0]?.text?.toLowerCase() || ''
-        if (gText.includes('male')) gender = 'male'
+        if (gText.trim() === 'male' || gText.startsWith('male')) gender = 'male'
       } catch {}
       const isMale = gender === 'male'
       console.log(`[Poster] Gender detected: ${gender}`)
