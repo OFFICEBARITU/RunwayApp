@@ -362,14 +362,8 @@ async function callClaude(prompt: string, imagePaths: string[]): Promise<string>
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
 export async function runAnalysis(imagePaths: string[], lang: string = 'en'): Promise<AnalysisResult> {
-  const langMap: Record<string, string> = {
-    es: 'Spanish',
-    pt: 'Portuguese (Brazilian)',
-    fr: 'French',
-    en: 'English',
-  }
-  const targetLang = langMap[lang] || 'English'
-  const langInstruction = `\n\n═══ LANGUAGE REQUIREMENT — MANDATORY ═══\nYou MUST write ALL descriptive text fields in ${targetLang}.\nThis is NON-NEGOTIABLE. Every string value in the JSON must be in ${targetLang}.\nDo NOT mix languages. Do NOT use English if the target is not English.\nOnly exceptions: hex color codes (#ffffff), numeric values, and technical measurements.\nIf you respond in the wrong language, the output will be rejected.\n═══════════════════════════════════════`
+  // English only - consistent quality
+  const langInstruction = ''
   
   const genderInstruction = '\n\nGENDER DETECTION: First determine if the person in the photo is male or female. Add a \"gender\" field to the root of your JSON with value \"male\" or \"female\". Adjust ALL recommendations accordingly — hairstyles, makeup, clothing, and accessories must be appropriate for the detected gender.'
 
@@ -387,16 +381,16 @@ export async function runAnalysis(imagePaths: string[], lang: string = 'en'): Pr
     const genderWord = gender === 'male' ? 'men' : 'women'
     // Build simple, effective queries that Unsplash can find
     const hq = (hairstyle.bestHairstyles||[]).slice(0,5).map((h:any) => {
-      const name = h.name || 'hairstyle'
-      return `${name} ${genderWord} haircut portrait`
+      const q = h.imageSearchQuery || h.name || 'hairstyle'
+      return `${q} portrait professional photo`
     })
     const aq = (hairstyle.hairsToAvoid||[]).slice(0,6).map((h:any) => {
-      const name = h.name || 'hairstyle'
-      return `${name} ${genderWord} haircut portrait`
+      const q = h.imageSearchQuery || h.name || 'hairstyle'
+      return `${q} portrait professional photo`
     })
     const oq = (colorimetry.outfitStyles||[]).slice(0,4).map((o:any) => {
-      const cat = o.category || 'fashion'
-      return `${cat} ${genderWord} fashion editorial`
+      const q = o.searchQuery || o.category || 'fashion outfit'
+      return `${q} editorial fashion vogue`
     })
     console.log('[Unsplash] Fetching hairstyle images:', hq)
     console.log('[Unsplash] Fetching outfit images:', oq)

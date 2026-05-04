@@ -12,6 +12,8 @@ interface Props {
 
 export default function PaymentModal({ t, product, price, checkoutUrl, onSuccess, onClose }: Props) {
   const [status, setStatus] = useState<'idle' | 'waiting' | 'processing'>('idle')
+  const [showIframe, setShowIframe] = useState(false)
+  const [checkoutUrlFinal, setCheckoutUrl] = useState('')
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const firedRef = useRef(false)
   const API = process.env.NEXT_PUBLIC_API_URL || ''
@@ -48,7 +50,8 @@ export default function PaymentModal({ t, product, price, checkoutUrl, onSuccess
     setStatus('waiting')
     startPolling(sessionId)
     const url = `${checkoutUrl}?checkout[custom][session_id]=${sessionId}&checkout[custom][product]=${product}`
-    window.open(url, '_blank', 'width=500,height=700')
+    setCheckoutUrl(url)
+    setShowIframe(true)
   }
 
   const title = product === 'poster' ? String(t.prod2Title) : String(t.prod1Title)

@@ -103,6 +103,8 @@ export default function Home() {
     setProduct(p); setImage(null); setPreview(null); setError('')
   }, [])
 
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
+
   const handleCTA = useCallback(() => {
     if (!image) { setError(String(t.errorUpload1)); setTimeout(() => setError(''), 3000); return }
     setError(''); setAppState('payment')
@@ -243,7 +245,7 @@ export default function Home() {
         </header>
 
         {/* ── HERO ── */}
-        <section style={{ padding: '64px 24px 50px', textAlign: 'center' }}>
+        <section style={{ padding: '32px 16px 28px', textAlign: 'center' }}>
           <div style={{ maxWidth: '480px', margin: '0 auto' }}>
 
             {/* Issue label */}
@@ -254,7 +256,7 @@ export default function Home() {
             {/* Magazine masthead — thin weight like the photo */}
             <div style={{
               fontFamily: "'Cormorant Garamond', 'Times New Roman', serif",
-              fontSize: 'clamp(72px, 20vw, 108px)',
+              fontSize: 'clamp(48px, 14vw, 80px)',
               fontWeight: 300,
               letterSpacing: '0.05em',
               lineHeight: 0.88,
@@ -298,7 +300,7 @@ export default function Home() {
         </section>
 
         {/* ── MAIN CARD ── */}
-        <section style={{ maxWidth: '480px', margin: '0 auto', padding: '0 18px 55px' }}>
+        <section style={{ maxWidth: '480px', margin: '0 auto', padding: '0 12px 40px' }}>
           <div style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(24px)' }}>
 
             {/* Product selector */}
@@ -306,7 +308,7 @@ export default function Home() {
               <div style={{ fontSize: '6.5px', letterSpacing: '0.5em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginBottom: '16px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
                 {String(t.selectProduct)}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
 
                 {/* Product 1 — Analysis */}
                 <div onClick={() => handleSelectProduct('analysis')} style={{
