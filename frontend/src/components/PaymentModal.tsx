@@ -54,9 +54,9 @@ export default function PaymentModal({ t, product, price, checkoutUrl, onSuccess
   const title = product === 'poster' ? String(t.prod2Title) : String(t.prod1Title)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(8,8,8,0.92)', backgroundImage: 'url(/images/heel-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center 40%' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(8,8,8,0.92)', backgroundImage: 'url(/images/heel-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center 40%' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,8,8,0.90)', backdropFilter: 'blur(6px)' }} />
-      <div style={{ background: '#0f0f0f', border: '1px solid rgba(245,240,232,0.12)', padding: '36px 28px 40px', width: '100%', maxWidth: '440px', borderBottom: 'none', position: 'relative', zIndex: 1 }}>
+      <div style={{ background: '#0f0f0f', border: '1px solid rgba(245,240,232,0.12)', padding: '36px 28px 40px', width: '90%', maxWidth: '400px', position: 'relative', zIndex: 1, borderRadius: '2px' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '16px', right: '20px', background: 'none', border: 'none', color: 'rgba(245,240,232,0.3)', fontSize: '18px', cursor: 'pointer' }}>×</button>
         <div style={{ width: '32px', height: '1px', background: '#C0001A', marginBottom: '20px' }} />
         <p style={{ fontSize: '7px', letterSpacing: '0.5em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '10px' }}>{String(t.modalEyebrow)}</p>

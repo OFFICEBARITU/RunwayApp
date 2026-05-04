@@ -15,10 +15,6 @@ interface JobState {
   createdAt: number
 }
 
-// FIX: tiempo de retención para cleanup — 1h para jobs completados, 10min para errores
-const JOB_CLEANUP_DONE_MS = 60 * 60 * 1000       // 1 hora
-const JOB_CLEANUP_ERROR_MS = 10 * 60 * 1000       // 10 minutos
-
 export function createJob(jobId: string): void {
   const state: JobState = { status: 'processing', createdAt: Date.now() }
   fs.writeFileSync(path.join(JOBS_DIR, `${jobId}.json`), JSON.stringify(state))
@@ -28,20 +24,15 @@ export function completeJob(jobId: string, result: { reportUrl?: string; posterU
   const state: JobState = { status: 'done', ...result, createdAt: Date.now() }
   fs.writeFileSync(path.join(JOBS_DIR, `${jobId}.json`), JSON.stringify(state))
   console.log(`[Job] Done: ${jobId} — ${JSON.stringify(result)}`)
-  // FIX: cleanup programado para jobs completados
   setTimeout(() => {
     try { fs.unlinkSync(path.join(JOBS_DIR, `${jobId}.json`)) } catch {}
-  }, JOB_CLEANUP_DONE_MS)
+  }, 3 * 60 * 60 * 1000)
 }
 
 export function failJob(jobId: string, error: string): void {
   const state: JobState = { status: 'error', error, createdAt: Date.now() }
   fs.writeFileSync(path.join(JOBS_DIR, `${jobId}.json`), JSON.stringify(state))
   console.log(`[Job] Failed: ${jobId} — ${error}`)
-  // FIX: cleanup también para jobs fallidos (antes quedaban en disco indefinidamente)
-  setTimeout(() => {
-    try { fs.unlinkSync(path.join(JOBS_DIR, `${jobId}.json`)) } catch {}
-  }, JOB_CLEANUP_ERROR_MS)
 }
 
 jobStatusRouter.get('/', (req: Request, res: Response) => {
@@ -49,8 +40,12 @@ jobStatusRouter.get('/', (req: Request, res: Response) => {
   if (!jobId) return res.status(400).json({ error: 'Missing job id' })
   try {
     const file = path.join(JOBS_DIR, `${jobId}.json`)
-    if (!fs.existsSync(file)) return res.json({ status: 'processing' })
+    if (!fs.existsSync(file)) {
+      console.log(`[Job] Polling ${jobId} — not found (processing or expired)`)
+      return res.json({ status: 'processing' })
+    }
     const state: JobState = JSON.parse(fs.readFileSync(file, 'utf8'))
+    console.log(`[Job] Polling ${jobId} — status: ${state.status}`)
     return res.json(state)
   } catch {
     return res.json({ status: 'processing' })
