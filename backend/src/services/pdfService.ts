@@ -105,12 +105,12 @@ body {
 }
 
 .header-img {
-  width: 72px;
-  height: 88px;
+  width: 88px;
+  height: 108px;
   object-fit: cover;
-  object-position: center top;
+  object-position: center 15%;
   flex-shrink: 0;
-  filter: grayscale(20%);
+  filter: grayscale(10%);
 }
 
 .header-text { flex: 1; }
