@@ -21,8 +21,8 @@ async function generateReportHTML(data: {
   imageBase64: string[]
   lang: string
   referenceImages?: { hairstyles: (string|null)[]; outfits: (string|null)[] }
-}): string {
-  const { colorimetry: c, hairstyle: h, imageBase64: imgs, referenceImages: refs } = data
+}): Promise<string> {
+  const { colorimetry: c, hairstyle: h, imageBase64: imgs, lang, referenceImages: refs } = data
   const refHairstyles = refs?.hairstyles || []
   const refOutfits = refs?.outfits || []
 
