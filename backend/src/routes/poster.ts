@@ -13,8 +13,14 @@ const UPLOADS_DIR = path.join(__dirname, '../../uploads')
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../')
-const BASEIMAGE_PATH = path.join(PROJECT_ROOT, 'src/assets/BASEIMAGE.png')
+const ASSETS_DIR = path.join(PROJECT_ROOT, 'src/assets')
 const REPORTS_DIR = path.join(__dirname, '../../reports')
+
+function getBaseImagePath(isMale: boolean): string {
+  if (isMale) return path.join(ASSETS_DIR, 'BASEIMAGE_MALE.jpg')
+  const female = ['BASEIMAGE_FEMALE_RED.jpg', 'BASEIMAGE_FEMALE_GREEN.jpg', 'BASEIMAGE_FEMALE_PURPLE.jpg']
+  return path.join(ASSETS_DIR, female[Math.floor(Math.random() * female.length)])
+}
 if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true })
 
 const BACKEND_URL = 'https://runway-backend-4qmw.onrender.com'
@@ -81,6 +87,10 @@ posterRouter.post(
         if (gText.includes('male')) gender = 'male'
       } catch {}
       console.log(`[Poster] Gender detected: ${gender}`)
+
+      // Select base image by gender
+      const BASEIMAGE_PATH = getBaseImagePath(isMale)
+      console.log(`[Poster] Base image: ${path.basename(BASEIMAGE_PATH)}`)
 
       // Resize images
       const baseBuffer = await sharp(BASEIMAGE_PATH)
