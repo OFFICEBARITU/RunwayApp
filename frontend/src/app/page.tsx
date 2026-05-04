@@ -124,17 +124,43 @@ export default function Home() {
       if (!data.jobId) throw new Error('No job ID returned')
       const jobId = data.jobId
       let attempts = 0
-      const maxAttempts = 120 // 6 min max at 3s intervals
+      let savedFalRequestId: string | null = null
+      const maxAttempts = 120 // 6 min max at 5s intervals
+
       const pollJob = async (): Promise<void> => {
         attempts++
         if (attempts > maxAttempts) throw new Error('Job timed out')
         try {
+          // If we have a fal request_id, check fal directly (survives Render restarts)
+          if (savedFalRequestId && product === 'poster') {
+            const falRes = await fetch(`${API}/api/job-status/fal?requestId=${savedFalRequestId}`)
+            if (falRes.ok) {
+              const falData = await falRes.json()
+              if (falData.done && falData.posterUrl) {
+                setPosterUrl(falData.posterUrl)
+                setReportUrl('')
+                setAppState('result')
+                return
+              }
+              if (falData.done && falData.error) {
+                throw new Error(falData.error)
+              }
+            }
+          }
+
+          // Regular job status poll
           const statusRes = await fetch(`${API}/api/job-status?id=${jobId}`)
           if (!statusRes.ok) {
-            await new Promise(r => setTimeout(r, 3000))
+            await new Promise(r => setTimeout(r, 5000))
             return pollJob()
           }
           const status = await statusRes.json()
+
+          // Save fal request_id when we get it
+          if (status.falRequestId && !savedFalRequestId) {
+            savedFalRequestId = status.falRequestId
+          }
+
           if (status.status === 'done') {
             if (product === 'poster') { setPosterUrl(status.posterUrl || null); setReportUrl('') }
             else { setReportUrl(status.reportUrl || ''); setPosterUrl(null) }
@@ -144,7 +170,7 @@ export default function Home() {
         } catch (e: any) {
           if (e.message.includes('timed out') || e.message.includes('failed')) throw e
         }
-        await new Promise(r => setTimeout(r, 3000))
+        await new Promise(r => setTimeout(r, 5000))
         return pollJob()
       }
       await pollJob()

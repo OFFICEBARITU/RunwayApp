@@ -100,6 +100,18 @@ async function checkFalStatus(falRequestId: string): Promise<{ done: boolean; po
   }
 }
 
+// GET /api/job-status/fal?requestId=xxx — check fal.ai directly by request_id
+jobStatusRouter.get('/fal', async (req: Request, res: Response) => {
+  const falRequestId = req.query.requestId as string
+  if (!falRequestId) return res.status(400).json({ error: 'Missing requestId' })
+  try {
+    const result = await checkFalStatus(falRequestId)
+    return res.json(result)
+  } catch (e: any) {
+    return res.json({ done: false, error: e.message })
+  }
+})
+
 // GET /api/job-status?id=xxx
 jobStatusRouter.get('/', async (req: Request, res: Response) => {
   const jobId = req.query.id as string
@@ -133,8 +145,8 @@ jobStatusRouter.get('/', async (req: Request, res: Response) => {
       }
     }
 
-    console.log(`[Job] Polling ${jobId} — status: processing`)
-    return res.json({ status: 'processing' })
+    console.log(`[Job] Polling ${jobId} — status: processing, falRequestId: ${state.falRequestId || 'none'}`)
+    return res.json({ status: 'processing', falRequestId: state.falRequestId || null })
 
   } catch {
     return res.json({ status: 'processing' })
