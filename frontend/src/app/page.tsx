@@ -174,7 +174,7 @@ export default function Home() {
           width: '45vw', maxWidth: '220px',
           backgroundImage: 'url(/images/heel-bg.png)',
           backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'bottom right',
-          opacity: 0.07, bottom: '0', height: '60vh',
+          opacity: 0.07, height: '60vh',
         }} />
         {/* Gradient vignette */}
         <div style={{
@@ -282,8 +282,21 @@ export default function Home() {
                   position: 'relative', padding: '16px 14px',
                 }}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '10px' }}>
-                    <div style={{ color: product === 'analysis' ? '#C0001A' : 'rgba(255,255,255,0.2)', marginTop: '2px', flexShrink: 0 }}>
-                      <IconReport />
+                    <div style={{ width: '44px', height: '54px', flexShrink: 0, overflow: 'hidden', marginTop: '2px' }}>
+                      <svg width="44" height="54" viewBox="0 0 44 54" style={{ display: 'block' }}>
+                        <rect width="44" height="54" fill="#0a0a0a"/>
+                        {/* Color season wheel */}
+                        <circle cx="22" cy="24" r="14" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5"/>
+                        <path d="M22 10 A14 14 0 0 1 34.1 17" fill="none" stroke="#f5c842" strokeWidth="3.5" strokeLinecap="round"/>
+                        <path d="M34.1 17 A14 14 0 0 1 34.1 31" fill="none" stroke="#e8834a" strokeWidth="3.5" strokeLinecap="round"/>
+                        <path d="M34.1 31 A14 14 0 0 1 22 38" fill="none" stroke="#c0392b" strokeWidth="3.5" strokeLinecap="round"/>
+                        <path d="M22 38 A14 14 0 0 1 9.9 31" fill="none" stroke="#8e44ad" strokeWidth="3.5" strokeLinecap="round"/>
+                        <path d="M9.9 31 A14 14 0 0 1 9.9 17" fill="none" stroke="#3498db" strokeWidth="3.5" strokeLinecap="round"/>
+                        <path d="M9.9 17 A14 14 0 0 1 22 10" fill="none" stroke="#27ae60" strokeWidth="3.5" strokeLinecap="round"/>
+                        <circle cx="22" cy="24" r="6" fill={product === 'analysis' ? '#C0001A' : 'rgba(255,255,255,0.08)'} />
+                        <circle cx="22" cy="24" r="2.5" fill="rgba(255,255,255,0.9)"/>
+                        <text x="22" y="48" textAnchor="middle" fontSize="5" fill="rgba(255,255,255,0.2)" fontFamily="Helvetica Neue, Arial" letterSpacing="0.5">COLORIMETRY</text>
+                      </svg>
                     </div>
                     <div>
                       <div style={{ fontSize: '7px', letterSpacing: '0.35em', textTransform: 'uppercase', color: product === 'analysis' ? '#C0001A' : 'rgba(255,255,255,0.4)', fontWeight: 400, marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
@@ -309,8 +322,12 @@ export default function Home() {
                   position: 'relative', padding: '16px 14px',
                 }}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '10px' }}>
-                    <div style={{ color: product === 'poster' ? '#C0001A' : 'rgba(255,255,255,0.2)', marginTop: '2px', flexShrink: 0 }}>
-                      <IconPoster />
+                    <div style={ width: '44px', height: '54px', flexShrink: 0, overflow: 'hidden', marginTop: '2px', border: '1px solid rgba(255,255,255,0.1)' }>
+                      <img
+                        src="data:image/jpeg;base64,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"
+                        alt="Runway Poster"
+                        style={ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', filter: product === 'poster' ? 'none' : 'grayscale(60%) brightness(0.7)' }
+                      />
                     </div>
                     <div>
                       <div style={{ fontSize: '7px', letterSpacing: '0.35em', textTransform: 'uppercase', color: product === 'poster' ? '#C0001A' : 'rgba(255,255,255,0.4)', fontWeight: 400, marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
