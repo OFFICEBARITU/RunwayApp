@@ -86,6 +86,7 @@ posterRouter.post(
         const gText = gData.content?.[0]?.text?.toLowerCase() || ''
         if (gText.includes('male')) gender = 'male'
       } catch {}
+      const isMale = gender === 'male'
       console.log(`[Poster] Gender detected: ${gender}`)
 
       // Select base image by gender
