@@ -77,7 +77,6 @@ posterRouter.post(
         .jpeg({ quality: 85 })
         .toBuffer()
       // Crop user image to focus on face
-      const userMeta = await sharp(img0.path).metadata()
       const userBuffer = await sharp(img0.path)
         .resize(768, 768, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 90 })
@@ -85,7 +84,7 @@ posterRouter.post(
 
       const baseDataUrl = `data:image/jpeg;base64,${baseBuffer.toString('base64')}`
       const userDataUrl = `data:image/jpeg;base64,${userBuffer.toString('base64')}`
-      console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User face: ${Math.round(userBuffer.length/1024)}KB`)`
+      console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User face: ${Math.round(userBuffer.length/1024)}KB`)
 
       // Submit to fal.ai — don't wait for result
       const submitRes = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
