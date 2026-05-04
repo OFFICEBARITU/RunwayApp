@@ -279,7 +279,17 @@ async function fetchReferenceImage(query: string): Promise<string | null> {
     const res = await fetch(url, { headers: { Authorization: `Client-ID ${accessKey}` } })
     if (!res.ok) return null
     const data: any = await res.json()
-    return data.results?.[0]?.urls?.small || null
+    const imgUrl = data.results?.[0]?.urls?.small || null
+    if (!imgUrl) return null
+    // Download and convert to base64 so Puppeteer can render without external requests
+    const imgRes = await fetch(imgUrl)
+    if (!imgRes.ok) return null
+    const buf = Buffer.from(await imgRes.arrayBuffer())
+    const resized = await sharp(buf)
+      .resize(120, 150, { fit: 'cover', position: 'top' })
+      .jpeg({ quality: 70 })
+      .toBuffer()
+    return `data:image/jpeg;base64,${resized.toString('base64')}`
   } catch { return null }
 }
 
@@ -375,17 +385,29 @@ export async function runAnalysis(imagePaths: string[], lang: string = 'en'): Pr
   if (process.env.UNSPLASH_ACCESS_KEY) {
     const gender = hairstyle.gender || colorimetry.gender || 'women'
     const genderWord = gender === 'male' ? 'men' : 'women'
-    const hq = (hairstyle.bestHairstyles||[]).slice(0,5).map((h:any) => 
-      (h.imageSearchQuery||h.name).replace('women', genderWord).replace('woman', genderWord === 'men' ? 'man' : 'woman'))
-    const aq = (hairstyle.hairsToAvoid||[]).slice(0,6).map((h:any) => 
-      (h.imageSearchQuery||h.name).replace('women', genderWord))
-    const oq = (colorimetry.outfitStyles||[]).slice(0,4).map((o:any) => 
-      (o.searchQuery||o.category).replace('women', genderWord))
+    // Build simple, effective queries that Unsplash can find
+    const hq = (hairstyle.bestHairstyles||[]).slice(0,5).map((h:any) => {
+      const name = h.name || 'hairstyle'
+      return `${name} ${genderWord} haircut portrait`
+    })
+    const aq = (hairstyle.hairsToAvoid||[]).slice(0,6).map((h:any) => {
+      const name = h.name || 'hairstyle'
+      return `${name} ${genderWord} haircut portrait`
+    })
+    const oq = (colorimetry.outfitStyles||[]).slice(0,4).map((o:any) => {
+      const cat = o.category || 'fashion'
+      return `${cat} ${genderWord} fashion editorial`
+    })
+    console.log('[Unsplash] Fetching hairstyle images:', hq)
+    console.log('[Unsplash] Fetching outfit images:', oq)
     const [hi, ai, oi] = await Promise.all([
       Promise.all(hq.map(fetchReferenceImage)),
       Promise.all(aq.map(fetchReferenceImage)),
       Promise.all(oq.map(fetchReferenceImage)),
     ])
+    const hairstyleCount = [...hi, ...ai].filter(Boolean).length
+    const outfitCount = oi.filter(Boolean).length
+    console.log(`[Unsplash] Got ${hairstyleCount} hairstyle images, ${outfitCount} outfit images`)
     referenceImages = { hairstyles: [...hi, ...ai], outfits: oi }
   }
 

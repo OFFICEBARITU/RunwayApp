@@ -27,19 +27,57 @@ async function generateReportHTML(data: {
   const refOutfits = refs?.outfits || []
 
   // Labels by language
+  const t = (es: string, pt: string, fr: string, en: string) =>
+    lang === 'es' ? es : lang === 'pt' ? pt : lang === 'fr' ? fr : en
+
   const L: Record<string, string> = {
-    personalImage: lang === 'es' ? 'Imagen Personal' : lang === 'pt' ? 'Imagem Pessoal' : lang === 'fr' ? 'Image Personnelle' : 'Personal Image',
-    premiumAdvisor: lang === 'es' ? 'Asesor de Imagen Premium' : lang === 'pt' ? 'Consultor de Imagem Premium' : lang === 'fr' ? 'Conseiller Image Premium' : 'Premium Image Advisor',
-    editorialGuide: lang === 'es' ? 'Guía editorial de imagen' : lang === 'pt' ? 'Guia editorial de imagem' : lang === 'fr' ? 'Guide editorial d image' : 'Editorial image guide',
-    favorableColors: lang === 'es' ? 'Colores Favorables' : lang === 'pt' ? 'Cores Favoráveis' : lang === 'fr' ? 'Couleurs Favorables' : 'Favorable Colors',
-    avoidColors: lang === 'es' ? 'Colores a Evitar' : lang === 'pt' ? 'Cores a Evitar' : lang === 'fr' ? 'Couleurs à Éviter' : 'Colors to Avoid',
-    favorable: lang === 'es' ? '✓ Favorables' : lang === 'pt' ? '✓ Favoráveis' : lang === 'fr' ? '✓ Favorables' : '✓ Favorable',
-    avoid: lang === 'es' ? '✗ Evitar' : lang === 'pt' ? '✗ Evitar' : lang === 'fr' ? '✗ Éviter' : '✗ Avoid',
-    yourSeason: lang === 'es' ? 'Tu Estación' : lang === 'pt' ? 'Sua Estação' : lang === 'fr' ? 'Votre Saison' : 'Your Season',
-    ranking: lang === 'es' ? '★ Ranking Top' : lang === 'pt' ? '★ Ranking Top' : lang === 'fr' ? '★ Classement Top' : '★ Top Ranking',
-    styleGuide: lang === 'es' ? 'Guía de Estilo' : lang === 'pt' ? 'Guia de Estilo' : lang === 'fr' ? 'Guide de Style' : 'Style Guide',
-    dos: lang === 'es' ? 'Lo que funciona' : lang === 'pt' ? 'O que funciona' : lang === 'fr' ? 'Ce qui marche' : 'What works',
-    donts: lang === 'es' ? 'Lo que evitar' : lang === 'pt' ? 'O que evitar' : lang === 'fr' ? 'Ce qu il faut eviter' : 'What to avoid',
+    personalImage: t('Imagen Personal', 'Imagem Pessoal', 'Image Personnelle', 'Personal Image'),
+    premiumAdvisor: t('Asesor de Imagen Premium', 'Consultor de Imagem Premium', 'Conseiller Image Premium', 'Premium Image Advisor'),
+    editorialGuide: t('Guía editorial de imagen', 'Guia editorial de imagem', 'Guide editorial image', 'Editorial image guide'),
+    favorableColors: t('Colores Favorables', 'Cores Favoráveis', 'Couleurs Favorables', 'Favorable Colors'),
+    avoidColors: t('Colores a Evitar', 'Cores a Evitar', 'Couleurs à Éviter', 'Colors to Avoid'),
+    favorable: t('✓ Favorables', '✓ Favoráveis', '✓ Favorables', '✓ Favorable'),
+    avoid: t('✗ Evitar', '✗ Evitar', '✗ Éviter', '✗ Avoid'),
+    yourSeason: t('Tu Estación', 'Sua Estação', 'Votre Saison', 'Your Season'),
+    ranking: t('★ Ranking Top', '★ Ranking Top', '★ Classement Top', '★ Top Ranking'),
+    styleGuide: t('Guía de Estilo', 'Guia de Estilo', 'Guide de Style', 'Style Guide'),
+    dos: t('Lo que funciona', 'O que funciona', 'Ce qui marche', 'What works'),
+    donts: t('Lo que evitar', 'O que evitar', 'Ce qu il faut eviter', 'What to avoid'),
+    beforeVsAfter: t('${L.beforeVsAfter}', '${L.beforeVsAfter}', 'AVANT VS GLOW UP', 'BEFORE VS GLOW UP'),
+    before: t('ANTES', 'ANTES', 'AVANT', 'BEFORE'),
+    glowup: t('${L.glowup}', '${L.glowup}', '${L.glowup}', '${L.glowup}'),
+    lessFavoring: t('${L.lessFavoring}', 'MENOS FAVORÁVEIS', 'MOINS FAVORABLES', 'LESS FLATTERING'),
+    moreFavoring: t('${L.moreFavoring}', 'MAIS FAVORÁVEIS', 'PLUS FAVORABLES', 'MOST FLATTERING'),
+    skinUndertone: t('SUBTONO DE PIEL', 'SUBTOM DE PELE', 'SOUS-TON DE PEAU', '${L.skinUndertone}'),
+    personalPalette: t('PALETA PERSONAL', 'PALETA PESSOAL', 'PALETTE PERSONNELLE', '${L.personalPalette}'),
+    basics: t('BÁSICOS', 'BÁSICOS', 'BASIQUES', 'BASICS'),
+    accents: t('ACENTOS', 'ACENTOS', 'ACCENTS', 'ACCENTS'),
+    recommendedPalette: t('PALETA RECOMENDADA', 'PALETA RECOMENDADA', 'PALETTE RECOMMANDÉE', '${L.recommendedPalette}'),
+    outfitStyles: t('ESTILOS DE OUTFIT', 'ESTILOS DE OUTFIT', 'STYLES DE TENUE', '${L.outfitStyles}'),
+    keyPieces: t('PRENDAS CLAVE', 'PEÇAS CHAVE', 'PIÈCES CLÉS', 'KEY PIECES'),
+    baseColors: t('COLORES BASE', 'CORES BASE', 'COULEURS DE BASE', 'BASE COLORS'),
+    looksRecommended: t('${L.looksRecommended}', '${L.looksRecommended}', 'LOOKS RECOMMANDÉS', 'RECOMMENDED LOOKS'),
+    wardrobeEssential: t('TU GUARDARROPA ESENCIAL', 'SEU GUARDA-ROUPA ESSENCIAL', 'VOTRE GARDE-ROBE ESSENTIELLE', 'YOUR WARDROBE ESSENTIALS'),
+    colorsForClothing: t('${L.colorsForClothing}', 'CORES APLICADAS À VESTIMENTA', 'COULEURS POUR LA TENUE', 'COLORS FOR CLOTHING'),
+    alwaysWear: t('${L.alwaysWear}', '✓ USAR SEMPRE', '✓ TOUJOURS PORTER', '✓ ALWAYS WEAR'),
+    neverWear: t('${L.neverWear}', '✗ EVITAR SEMPRE', '✗ JAMAIS PORTER', '✗ NEVER WEAR'),
+    hairColor: t('${L.hairColor}', 'COR DO CABELO', 'COULEUR DE CHEVEUX', 'HAIR COLOR'),
+    current: t('ACTUAL', 'ATUAL', 'ACTUEL', 'CURRENT'),
+    recommended: t('RECOMENDADO', 'RECOMENDADO', 'RECOMMANDÉ', 'RECOMMENDED'),
+    toAvoid: t('EVITAR', 'EVITAR', 'À ÉVITER', 'AVOID'),
+    errorsToAvoid: t('${L.errorsToAvoid}', '✗ ERROS A EVITAR', '✗ ERREURS À ÉVITER', '✗ ERRORS TO AVOID'),
+    keyCorrections: t('${L.keyCorrections}', '✓ CORREÇÕES CHAVE', '✓ CORRECTIONS CLÉS', '✓ KEY CORRECTIONS'),
+    editorialVerdict: t('${L.editorialVerdict}', '${L.editorialVerdict}', 'VERDICT ÉDITORIAL', 'EDITORIAL VERDICT'),
+    seasonRationale: t('FUNDAMENTO DE ESTACIÓN', 'FUNDAMENTO DE ESTAÇÃO', 'RAISONNEMENT DE SAISON', '${L.seasonRationale}'),
+    styleKeywords: t('PALABRAS CLAVE DE ESTILO', 'PALAVRAS-CHAVE DE ESTILO', 'MOTS-CLÉS DE STYLE', '${L.styleKeywords}'),
+    accessories: t('${L.accessories}', 'ACESSÓRIOS', 'ACCESSOIRES', 'ACCESSORIES'),
+    jewelry: t('JOYERÍA', 'JOIAS', 'BIJOUX', 'JEWELRY'),
+    bags: t('CARTERAS', 'BOLSAS', 'SACS', 'BAGS'),
+    shoes: t('CALZADO', 'CALÇADOS', 'CHAUSSURES', 'SHOES'),
+    scarves: t('${L.accessories}', 'ACESSÓRIOS', 'ACCESSOIRES', 'ACCESSORIES'),
+    makeupPalette: t('${L.makeupPalette}', 'PALETA DE MAQUIAGEM', 'PALETTE DE MAQUILLAGE', 'MAKEUP PALETTE'),
+    dressBody: t('Viste el cuerpo que tenés.', 'Vista o corpo que você tem.', 'Habillez le corps que vous avez.', '${L.dressBody}'),
+    colorSeason: t('El color de la estación que sos.', 'A cor da estação que você é.', 'La couleur de la saison que vous êtes.', '${L.colorSeason}'),
   }
 
   // Resize user image to thumbnail to prevent OOM in Puppeteer
@@ -856,7 +894,7 @@ body {
   <div class="colors-section">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
       <div style="padding-right:8px;border-right:1px solid rgba(242,237,228,0.06);">
-        <p class="col-label favorable-label">Favorable ✓</p>
+        <p class="col-label favorable-label">${L.favorable}</p>
         <div style="display:flex;gap:3px;flex-wrap:wrap;">
           ${bestColors.map((hex: string, i: number) => `
             <div style="text-align:center;width:36px;">
@@ -871,7 +909,7 @@ body {
         </div>
       </div>
       <div style="padding-left:8px;">
-        <p class="col-label avoid-label">Avoid ✗</p>
+        <p class="col-label avoid-label">${L.avoid}</p>
         <div style="display:flex;gap:3px;flex-wrap:wrap;">
           ${avoidColors.map((hex: string, i: number) => `
             <div style="text-align:center;width:36px;">
@@ -1395,7 +1433,7 @@ body {
   <!-- Final runway sign-off -->
   <div style="background:#080808;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid rgba(242,237,228,0.06);">
     <div>
-      <p style="font-family:'Georgia',serif;font-size:11px;font-style:italic;color:rgba(242,237,228,0.5);line-height:1.5;">Dress the body you have.<br>Color the season you are.</p>
+      <p style="font-family:'Georgia',serif;font-size:11px;font-style:italic;color:rgba(242,237,228,0.5);line-height:1.5;">${L.dressBody}<br>${L.colorSeason}</p>
       <div style="width:24px;height:1px;background:#C0001A;margin-top:6px;"></div>
     </div>
     <div style="text-align:right;">
