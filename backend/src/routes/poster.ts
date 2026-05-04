@@ -84,14 +84,14 @@ posterRouter.post(
       const userDataUrl = `data:image/jpeg;base64,${userBuffer.toString('base64')}`
       console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User: ${Math.round(userBuffer.length/1024)}KB`)
 
-      // Submit to Replicate lucataco/faceswap
+      // Submit to Replicate cdingram/face-swap — 2.5M runs, reliable, 11s
       const REPLICATE_KEY = process.env.REPLICATE_API_KEY
-      const submitRes = await fetch('https://api.replicate.com/v1/models/lucataco/faceswap/predictions', {
+      const submitRes = await fetch('https://api.replicate.com/v1/models/cdingram/face-swap/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${REPLICATE_KEY}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait=30',
+          'Prefer': 'wait=60',
         },
         body: JSON.stringify({
           input: {
