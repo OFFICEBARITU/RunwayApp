@@ -17,7 +17,6 @@ const PROJECT_ROOT = path.resolve(__dirname, '../../')
 const BASEIMAGE_PATH = path.join(PROJECT_ROOT, 'src/assets/BASEIMAGE.png')
 const REPORTS_DIR = path.join(__dirname, '../../reports')
 if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true })
-const FAL_API_KEY = process.env.FAL_API_KEY
 
 const storage = multer.diskStorage({
   destination: UPLOADS_DIR,
@@ -68,7 +67,7 @@ posterRouter.post(
       } catch {}
 
       const isMale = gender === 'male'
-      console.log(`[Poster] Using easel-ai/advanced-face-swap — gender: ${gender}`)
+      console.log(`[Poster] Using cdingram/face-swap — gender: ${gender}`)
 
       // Resize to base64 — kontext accepts base64 directly
       const baseBuffer = await sharp(BASEIMAGE_PATH)
@@ -86,7 +85,7 @@ posterRouter.post(
 
       // Submit to Replicate cdingram/face-swap — 2.5M runs, reliable, 11s
       const REPLICATE_KEY = process.env.REPLICATE_API_KEY
-      const submitRes = await fetch('https://api.replicate.com/v1/models/cdingram/face-swap/predictions', {
+      const submitRes = await fetch('https://api.replicate.com/v1/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${REPLICATE_KEY}`,
@@ -94,6 +93,7 @@ posterRouter.post(
           'Prefer': 'wait=60',
         },
         body: JSON.stringify({
+          version: 'd5900f9ebed33e7ae08a07f17e0d98b4ebc68ab9528a70462afc3899cfe23bab',
           input: {
             target_image: baseDataUrl,
             swap_image: userDataUrl,
