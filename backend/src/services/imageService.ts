@@ -46,9 +46,9 @@ export async function generatePosterImage(data: {
   const userDataUrl = `data:image/jpeg;base64,${userBuffer.toString('base64')}`
 
   console.log(`[Poster] Base: ${Math.round(baseBuffer.length/1024)}KB, User: ${Math.round(userBuffer.length/1024)}KB`)
-  console.log('[Poster] Submitting to fal-ai/flux-pro/kontext...')
+  console.log('[Poster] Submitting to fal-ai/flux/dev...')
 
-  const submitRes = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
+  const submitRes = await fetch('https://queue.fal.run/fal-ai/flux/dev', {
     method: 'POST',
     headers: {
       'Authorization': `Key ${FAL_API_KEY}`,
@@ -57,12 +57,12 @@ export async function generatePosterImage(data: {
     body: JSON.stringify({
       prompt,
       image_url: baseDataUrl,
-      image_urls: [userDataUrl],
-      num_inference_steps: 16,
-      guidance_scale: 3.0,
+      image_size: 'portrait_4_3',
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
       num_images: 1,
       output_format: 'jpeg',
-      safety_tolerance: '2',
+      enable_safety_checker: false,
     }),
   })
 
@@ -94,7 +94,7 @@ export async function generatePosterImage(data: {
 
 async function pollFalResult(requestId: string, maxWaitMs = 240000): Promise<string> {
   const start = Date.now()
-  const statusUrl = `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}`
+  const statusUrl = `https://queue.fal.run/fal-ai/flux/dev/requests/${requestId}`
 
   while (Date.now() - start < maxWaitMs) {
     await new Promise(r => setTimeout(r, 5000))
