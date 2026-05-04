@@ -285,7 +285,6 @@ export default function Home() {
                     <div style={{ width: '44px', height: '54px', flexShrink: 0, overflow: 'hidden', marginTop: '2px' }}>
                       <svg width="44" height="54" viewBox="0 0 44 54" style={{ display: 'block' }}>
                         <rect width="44" height="54" fill="#0a0a0a"/>
-                        {/* Color season wheel */}
                         <circle cx="22" cy="24" r="14" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.5"/>
                         <path d="M22 10 A14 14 0 0 1 34.1 17" fill="none" stroke="#f5c842" strokeWidth="3.5" strokeLinecap="round"/>
                         <path d="M34.1 17 A14 14 0 0 1 34.1 31" fill="none" stroke="#e8834a" strokeWidth="3.5" strokeLinecap="round"/>
@@ -293,9 +292,9 @@ export default function Home() {
                         <path d="M22 38 A14 14 0 0 1 9.9 31" fill="none" stroke="#8e44ad" strokeWidth="3.5" strokeLinecap="round"/>
                         <path d="M9.9 31 A14 14 0 0 1 9.9 17" fill="none" stroke="#3498db" strokeWidth="3.5" strokeLinecap="round"/>
                         <path d="M9.9 17 A14 14 0 0 1 22 10" fill="none" stroke="#27ae60" strokeWidth="3.5" strokeLinecap="round"/>
-                        <circle cx="22" cy="24" r="6" fill={product === 'analysis' ? '#C0001A' : 'rgba(255,255,255,0.08)'} />
+                        <circle cx="22" cy="24" r="6" fill="rgba(192,0,26,0.7)"/>
                         <circle cx="22" cy="24" r="2.5" fill="rgba(255,255,255,0.9)"/>
-                        <text x="22" y="48" textAnchor="middle" fontSize="5" fill="rgba(255,255,255,0.2)" fontFamily="Helvetica Neue, Arial" letterSpacing="0.5">COLORIMETRY</text>
+                        <text x="22" y="48" textAnchor="middle" fontSize="5" fill="rgba(255,255,255,0.2)" fontFamily="Arial">COLORIMETRY</text>
                       </svg>
                     </div>
                     <div>
