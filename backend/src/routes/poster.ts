@@ -115,7 +115,7 @@ posterRouter.post(
       const baseUrl = `${BACKEND_URL}/reports/${tempBaseFile}`
       const userUrl = `${BACKEND_URL}/reports/${tempUserFile}`
 
-      console.log(`[Poster] Submitting to Replicate cdingram/face-swap...`)
+      console.log(`[Poster] Submitting to Replicate xiankgx/face-swap weight=0.9...`)
 
       // Submit to Replicate easel/advanced-face-swap
       const submitRes = await fetch('https://api.replicate.com/v1/predictions', {
@@ -125,10 +125,12 @@ posterRouter.post(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          version: 'd1d6ea8c8be89d664a07a457526f7128109dee7030fdac424788d762c71ed111',
+          version: 'cff87316e31787df12002c9e20a78a017a36cb31fde9862d8dedd15ab29b7288',
           input: {
-            swap_image: userUrl,
-            input_image: baseUrl,
+            source_image: userUrl,
+            target_image: baseUrl,
+            weight: 0.9,
+            det_thresh: 0.1,
           },
         }),
       })
