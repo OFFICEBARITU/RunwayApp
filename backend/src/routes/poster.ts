@@ -95,12 +95,12 @@ posterRouter.post(
 
       // Resize images
       const baseBuffer = await sharp(BASEIMAGE_PATH)
-        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 85 })
+        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 92 })
         .toBuffer()
       const userBuffer = await sharp(img0.path)
-        .resize(768, 768, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 90 })
+        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 95 })
         .toBuffer()
 
       console.log(`[Poster] Base: ${Math.round(baseBuffer.length / 1024)}KB, User: ${Math.round(userBuffer.length / 1024)}KB`)
