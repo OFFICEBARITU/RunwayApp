@@ -164,9 +164,9 @@ export default function Home() {
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: 'url(/images/runway-cover.jpg)',
-          backgroundSize: 'cover', backgroundPosition: 'center 20%',
-          filter: 'blur(24px) brightness(0.22) saturate(0.6)',
-          transform: 'scale(1.1)',
+          backgroundSize: 'cover', backgroundPosition: 'center 15%',
+          filter: 'blur(16px) brightness(0.45) saturate(0.7)',
+          transform: 'scale(1.08)',
         }} />
         {/* Heel silhouette — subtle, bottom right */}
         <div style={{
@@ -179,7 +179,7 @@ export default function Home() {
         {/* Gradient vignette */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(8,8,8,0.6) 0%, rgba(8,8,8,0.15) 25%, rgba(8,8,8,0.5) 65%, rgba(8,8,8,0.98) 100%)',
+          background: 'linear-gradient(180deg, rgba(8,8,8,0.3) 0%, rgba(8,8,8,0.05) 20%, rgba(8,8,8,0.4) 60%, rgba(8,8,8,0.96) 100%)',
         }} />
         {/* Vertical red accent line — editorial detail */}
         <div style={{ position: 'absolute', top: 0, left: '20px', width: '1px', height: '100%', background: 'linear-gradient(180deg, transparent, rgba(192,0,26,0.3) 30%, rgba(192,0,26,0.15) 70%, transparent)', pointerEvents: 'none' }} />
@@ -191,13 +191,13 @@ export default function Home() {
         {/* Header */}
         <header style={{ padding: '0 24px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(8,8,8,0.5)', backdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 50 }}>
           <div style={{ maxWidth: '480px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0' }}>
-            <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '20px', fontWeight: 300, letterSpacing: '0.6em', textTransform: 'uppercase', color: '#fff' }}>
+            <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '23px', fontWeight: 300, letterSpacing: '0.6em', textTransform: 'uppercase', color: '#fff' }}>
               RUNWAY
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>
               {(['en', 'es', 'pt', 'fr'] as Lang[]).map(l => (
                 <button key={l} onClick={() => setLang(l)} style={{
-                  fontSize: '8px', letterSpacing: '0.2em', fontWeight: lang === l ? 500 : 300,
+                  fontSize: '9.2px', letterSpacing: '0.2em', fontWeight: lang === l ? 500 : 300,
                   color: lang === l ? '#C0001A' : 'rgba(255,255,255,0.35)', background: 'none', border: 'none',
                   cursor: 'pointer', textTransform: 'uppercase', fontFamily: 'inherit',
                 }}>
@@ -209,18 +209,18 @@ export default function Home() {
         </header>
 
         {/* ── HERO ── */}
-        <section style={{ padding: '56px 24px 44px', textAlign: 'center' }}>
+        <section style={{ padding: '64px 24px 50px', textAlign: 'center' }}>
           <div style={{ maxWidth: '480px', margin: '0 auto' }}>
 
             {/* Issue label */}
-            <div style={{ fontSize: '7px', letterSpacing: '0.6em', textTransform: 'uppercase', color: 'rgba(192,0,26,0.8)', marginBottom: '20px', fontWeight: 300, fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+            <div style={{ fontSize: '8px', letterSpacing: '0.6em', textTransform: 'uppercase', color: 'rgba(192,0,26,0.8)', marginBottom: '20px', fontWeight: 300, fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
               The Devil Wears Prada · May Issue
             </div>
 
             {/* Magazine masthead — thin weight like the photo */}
             <div style={{
               fontFamily: "'Cormorant Garamond', 'Times New Roman', serif",
-              fontSize: 'clamp(72px, 20vw, 108px)',
+              fontSize: 'clamp(83px, 23vw, 124px)',
               fontWeight: 300,
               letterSpacing: '0.05em',
               lineHeight: 0.88,
@@ -236,14 +236,14 @@ export default function Home() {
             {/* Tagline — italic serif, light */}
             <h1 style={{
               fontFamily: "'Cormorant Garamond', Georgia, serif",
-              fontSize: '20px', fontStyle: 'italic', fontWeight: 300,
+              fontSize: '23px', fontStyle: 'italic', fontWeight: 300,
               color: 'rgba(255,255,255,0.85)', lineHeight: 1.4, marginBottom: '14px',
             }}>
               {String(t.tagline)}
             </h1>
 
             <p style={{
-              fontSize: '11px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.9,
+              fontSize: '12.6px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.9,
               fontWeight: 300, maxWidth: '320px', margin: '0 auto 36px',
               fontFamily: "'Helvetica Neue', Arial, sans-serif",
               letterSpacing: '0.03em', whiteSpace: 'pre-line',
@@ -256,7 +256,7 @@ export default function Home() {
               {['AI Colorimetry', 'Editorial PDF', 'Instant Results'].map((item, i) => (
                 <div key={i} style={{ textAlign: 'center' }}>
                   <div style={{ width: '1px', height: '12px', background: 'rgba(192,0,26,0.5)', margin: '0 auto 6px' }} />
-                  <div style={{ fontSize: '6.5px', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{item}</div>
+                  <div style={{ fontSize: '7.5px', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{item}</div>
                 </div>
               ))}
             </div>
@@ -264,12 +264,12 @@ export default function Home() {
         </section>
 
         {/* ── MAIN CARD ── */}
-        <section style={{ maxWidth: '480px', margin: '0 auto', padding: '0 16px 48px' }}>
+        <section style={{ maxWidth: '480px', margin: '0 auto', padding: '0 18px 55px' }}>
           <div style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(24px)' }}>
 
             {/* Product selector */}
             <div style={{ padding: '22px 20px 0' }}>
-              <div style={{ fontSize: '6.5px', letterSpacing: '0.5em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginBottom: '16px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+              <div style={{ fontSize: '7.5px', letterSpacing: '0.5em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginBottom: '16px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
                 {String(t.selectProduct)}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -298,16 +298,16 @@ export default function Home() {
                       </svg>
                     </div>
                     <div>
-                      <div style={{ fontSize: '7px', letterSpacing: '0.35em', textTransform: 'uppercase', color: product === 'analysis' ? '#C0001A' : 'rgba(255,255,255,0.4)', fontWeight: 400, marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+                      <div style={{ fontSize: '8px', letterSpacing: '0.35em', textTransform: 'uppercase', color: product === 'analysis' ? '#C0001A' : 'rgba(255,255,255,0.4)', fontWeight: 400, marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
                         {String(t.prod1Title)}
                       </div>
-                      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 300, color: '#fff', lineHeight: 1 }}>
+                      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '25.3px', fontWeight: 300, color: '#fff', lineHeight: 1 }}>
                         $2.99
                       </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontWeight: 300 }}>{String(t.prod1Desc)}</div>
-                  <div style={{ marginTop: '10px', fontSize: '6.5px', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.18)', textTransform: 'uppercase', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>6 pages · PDF</div>
+                  <div style={{ fontSize: '10.3px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontWeight: 300 }}>{String(t.prod1Desc)}</div>
+                  <div style={{ marginTop: '10px', fontSize: '7.5px', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.18)', textTransform: 'uppercase', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>6 pages · PDF</div>
                   {product === 'analysis' && (
                     <div style={{ position: 'absolute', top: '10px', right: '10px', width: '6px', height: '6px', borderRadius: '50%', background: '#C0001A' }} />
                   )}
@@ -329,16 +329,16 @@ export default function Home() {
                       />
                     </div>
                     <div>
-                      <div style={{ fontSize: '7px', letterSpacing: '0.35em', textTransform: 'uppercase', color: product === 'poster' ? '#C0001A' : 'rgba(255,255,255,0.4)', fontWeight: 400, marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+                      <div style={{ fontSize: '8px', letterSpacing: '0.35em', textTransform: 'uppercase', color: product === 'poster' ? '#C0001A' : 'rgba(255,255,255,0.4)', fontWeight: 400, marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
                         {String(t.prod2Title)}
                       </div>
-                      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '22px', fontWeight: 300, color: '#fff', lineHeight: 1 }}>
+                      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '25.3px', fontWeight: 300, color: '#fff', lineHeight: 1 }}>
                         $2.99
                       </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontWeight: 300 }}>{String(t.prod2Desc)}</div>
-                  <div style={{ marginTop: '10px', fontSize: '6.5px', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.18)', textTransform: 'uppercase', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>AI Generated · PNG</div>
+                  <div style={{ fontSize: '10.3px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontWeight: 300 }}>{String(t.prod2Desc)}</div>
+                  <div style={{ marginTop: '10px', fontSize: '7.5px', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.18)', textTransform: 'uppercase', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>AI Generated · PNG</div>
                   {product === 'poster' && (
                     <div style={{ position: 'absolute', top: '10px', right: '10px', width: '6px', height: '6px', borderRadius: '50%', background: '#C0001A' }} />
                   )}
@@ -350,7 +350,7 @@ export default function Home() {
             <div style={{ padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                 <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-                <span style={{ fontSize: '6.5px', letterSpacing: '0.45em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{String(t.uploadTitle)}</span>
+                <span style={{ fontSize: '7.5px', letterSpacing: '0.45em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{String(t.uploadTitle)}</span>
                 <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
@@ -371,10 +371,10 @@ export default function Home() {
                     <div style={{ color: 'rgba(255,255,255,0.15)', marginBottom: '10px', display: 'flex', justifyContent: 'center' }}>
                       <IconUpload />
                     </div>
-                    <div style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+                    <div style={{ fontSize: '9.2px', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
                       {product === 'poster' ? String(t.slotPoster) : String(t.slotAnalysis)}
                     </div>
-                    <div style={{ fontSize: '7.5px', color: 'rgba(255,255,255,0.15)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+                    <div style={{ fontSize: '8.6px', color: 'rgba(255,255,255,0.15)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
                       JPG · PNG · Max 10MB
                     </div>
                   </div>
@@ -382,7 +382,7 @@ export default function Home() {
               </div>
             </div>
 
-            {error && <p style={{ fontSize: '9px', color: '#C0001A', textAlign: 'center', padding: '0 20px 8px', letterSpacing: '0.05em', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{error}</p>}
+            {error && <p style={{ fontSize: '10.3px', color: '#C0001A', textAlign: 'center', padding: '0 20px 8px', letterSpacing: '0.05em', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{error}</p>}
 
             {/* CTA */}
             <div style={{ padding: '0 20px 22px' }}>
@@ -396,7 +396,7 @@ export default function Home() {
                   border: image ? 'none' : '1px solid rgba(255,255,255,0.08)',
                   cursor: image ? 'pointer' : 'not-allowed',
                   fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: '16px', fontStyle: 'italic', fontWeight: 300,
+                  fontSize: '18.4px', fontStyle: 'italic', fontWeight: 300,
                   letterSpacing: '0.15em',
                   transition: 'all 0.2s',
                 }}
@@ -405,7 +405,7 @@ export default function Home() {
               </button>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '10px', color: 'rgba(255,255,255,0.2)' }}>
                 <IconLock />
-                <span style={{ fontSize: '7px', letterSpacing: '0.2em', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+                <span style={{ fontSize: '8px', letterSpacing: '0.2em', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
                   Secured · USD 2.99 · One-time payment
                 </span>
               </div>
@@ -421,7 +421,7 @@ export default function Home() {
             ].map((f, i) => (
               <div key={i} style={{ background: 'rgba(8,8,8,0.8)', padding: '14px 10px', textAlign: 'center', backdropFilter: 'blur(8px)' }}>
                 <div style={{ color: 'rgba(255,255,255,0.25)', display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>{f.icon}</div>
-                <div style={{ fontSize: '6.5px', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{f.label}</div>
+                <div style={{ fontSize: '7.5px', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{f.label}</div>
               </div>
             ))}
           </div>
@@ -434,10 +434,10 @@ export default function Home() {
               { num: '03', title: t.feat3Title, desc: t.feat3Desc },
             ].map((f, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '32px 1fr', gap: '12px', padding: '16px 20px', borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '11px', color: 'rgba(192,0,26,0.6)', fontWeight: 300, paddingTop: '1px' }}>{f.num}</span>
+                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '12.6px', color: 'rgba(192,0,26,0.6)', fontWeight: 300, paddingTop: '1px' }}>{f.num}</span>
                 <div>
-                  <p style={{ fontSize: '7.5px', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)', fontWeight: 400, marginBottom: '5px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{f.title}</p>
-                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.75, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontWeight: 300 }}>{f.desc}</p>
+                  <p style={{ fontSize: '8.6px', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)', fontWeight: 400, marginBottom: '5px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{f.title}</p>
+                  <p style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.75, fontFamily: "'Helvetica Neue', Arial, sans-serif", fontWeight: 300 }}>{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -446,10 +446,10 @@ export default function Home() {
 
         {/* Footer */}
         <footer style={{ textAlign: 'center', padding: '24px 20px 40px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '18px', fontWeight: 300, letterSpacing: '0.6em', color: 'rgba(255,255,255,0.3)', marginBottom: '10px' }}>RUNWAY</div>
-          <p style={{ fontSize: '7.5px', color: 'rgba(255,255,255,0.18)', letterSpacing: '0.12em', marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{String(t.footerText)}</p>
-          <p style={{ fontSize: '7px', color: 'rgba(255,255,255,0.1)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>© {new Date().getFullYear()} Runway · {String(t.footerRights)}</p>
-          <p style={{ fontSize: '7px', color: 'rgba(255,255,255,0.1)', marginTop: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{String(t.privacyNote)}</p>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '20.7px', fontWeight: 300, letterSpacing: '0.6em', color: 'rgba(255,255,255,0.3)', marginBottom: '10px' }}>RUNWAY</div>
+          <p style={{ fontSize: '8.6px', color: 'rgba(255,255,255,0.18)', letterSpacing: '0.12em', marginBottom: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{String(t.footerText)}</p>
+          <p style={{ fontSize: '8px', color: 'rgba(255,255,255,0.1)', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>© {new Date().getFullYear()} Runway · {String(t.footerRights)}</p>
+          <p style={{ fontSize: '8px', color: 'rgba(255,255,255,0.1)', marginTop: '4px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>{String(t.privacyNote)}</p>
         </footer>
       </div>
 
