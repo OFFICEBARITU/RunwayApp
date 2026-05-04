@@ -4,56 +4,32 @@ import { v4 as uuid } from 'uuid'
 import sharp from 'sharp'
 
 const REPORTS_DIR = path.join(__dirname, '../../reports')
+if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true })
+
 const PROJECT_ROOT = path.resolve(__dirname, '../../')
 const BASEIMAGE_PATH = path.join(PROJECT_ROOT, 'src/assets/BASEIMAGE.png')
 const FAL_API_KEY = process.env.FAL_API_KEY
 
-// ─── FIDELIDAD FACIAL ────────────────────────────────────────────────────────
-// Para fal.ai flux-pro/kontext, la calidad de la cara del usuario es crítica.
-//   · BASEIMAGE: 1080x1920 quality 85
-//   · USER FACE: NO downscale si ya es menor a 1024px, quality 92 JPEG
-//               fit: 'inside' para NO distorsionar proporciones del rostro
-//   · OUTPUT FINAL: 390x844 (mobile full-screen) quality 88 → ~60-100KB
+// Upload image buffer to fal.ai storage → returns public URL
+async function uploadToFal(buffer: Buffer, filename: string, mimeType = 'image/jpeg'): Promise<string> {
+  const blob = new Blob([buffer], { type: mimeType })
+  const formData = new FormData()
+  formData.append('file', blob, filename)
 
-async function prepareBaseImage(inputBuffer: Buffer): Promise<string> {
-  const resized = await sharp(inputBuffer)
-    .resize(1080, 1920, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer()
-  return resized.toString('base64')
+  const res = await fetch('https://fal.run/fal-ai/storage/upload', {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${FAL_API_KEY}` },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`fal.ai upload failed: ${err}`)
+  }
+
+  const data = await res.json() as any
+  return data.url
 }
-
-async function prepareUserFace(inputBuffer: Buffer): Promise<string> {
-  const meta = await sharp(inputBuffer).metadata()
-  const w = meta.width || 0
-  const h = meta.height || 0
-  const maxDim = Math.max(w, h)
-
-  // Solo reducir si supera 1024px — nunca agrandar ni recortar
-  const resized = await sharp(inputBuffer)
-    .resize(
-      maxDim > 1024 ? 1024 : undefined,
-      maxDim > 1024 ? 1024 : undefined,
-      { fit: 'inside', withoutEnlargement: true }
-    )
-    .jpeg({ quality: 92 })
-    .toBuffer()
-
-  const finalMeta = await sharp(resized).metadata()
-  console.log(`[Poster] User face: ${w}x${h} → ${finalMeta.width}x${finalMeta.height} @ q92 (${Math.round(resized.length/1024)}KB)`)
-  return resized.toString('base64')
-}
-
-// ─── DETECCIÓN DE GÉNERO ──────────────────────────────────────────────────────
-// FIX: "female".includes("male") === true → siempre chequear female primero
-function detectIsMale(gender: string): boolean {
-  const g = gender.toLowerCase().trim()
-  if (g.includes('female') || g.includes('mujer') || g.includes('femenino') || g === 'f') return false
-  if (g.includes('male') || g.includes('man') || g.includes('hombre') || g.includes('masculino') || g === 'm') return true
-  return false
-}
-
-// ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
 export async function generatePosterImage(data: {
   imageBase64: string[]
@@ -63,125 +39,118 @@ export async function generatePosterImage(data: {
   const { imageBase64, colorimetry, hairstyle } = data
 
   const gender: string = (hairstyle?.gender || colorimetry?.gender || 'female').toLowerCase()
-  const isMale = detectIsMale(gender)
+  const isMale = gender.includes('male') || gender.includes('man') || gender.includes('hombre')
 
   const season = colorimetry?.season || colorimetry?.seasonSubtype || 'Soft Autumn'
   const dressColor = getDressColor(season)
 
-  // FIX prompt: pronombre correcto por género + énfasis en fidelidad facial
   const genderInstructions = isMale
-    ? `Add a new MALE person SEATED on the stairs next to Stanley Tucci in the center. He wears a matte black formal tuxedo with bow tie. Extract his face exactly from the reference photo — preserve facial features, skin tone, and expression with maximum fidelity.`
-    : `Add a new FEMALE person STANDING on the left side of the stairs below Anne Hathaway. She wears an elegant long gala dress in ${dressColor}. Extract her face exactly from the reference photo — preserve facial features, skin tone, and expression with maximum fidelity.`
+    ? `Insert a new male person seated on the marble stairs next to Stanley Tucci. He wears a formal black tuxedo with bow tie. Use the exact face from the reference photo.`
+    : `Insert a new female person standing on the left side of the stairs near Anne Hathaway. She wears an elegant long gala dress in ${dressColor}. Use the exact face from the reference photo.`
 
-  const prompt = `Photorealistic movie poster editing. This is The Devil Wears Prada 2 poster featuring Meryl Streep in red dress at top, Anne Hathaway in white suit on left, Emily Blunt in black dress on right, and Stanley Tucci in tuxedo seated at bottom on white marble stairs. TASK: ${genderInstructions} CRITICAL RULES: The new person's face must be an exact photorealistic copy from the reference image — same features, same skin, same expression. Keep all original cast completely untouched. Keep all title text and poster typography intact. No watermarks. Output: vertical portrait poster optimized for mobile screen.`
+  const prompt = `Movie poster photo editing. The Devil Wears Prada 2 poster. Meryl Streep top center in red dress, Anne Hathaway left in white suit, Emily Blunt right in black dress, Stanley Tucci seated bottom center. Task: ${genderInstructions} Rules: preserve exact face from reference, keep all original cast untouched, keep all text and title intact, no watermarks, photorealistic result.`
 
-  const baseImageBuffer = fs.readFileSync(BASEIMAGE_PATH)
-  const baseImageB64 = await prepareBaseImage(baseImageBuffer)
-  const baseImageDataUrl = `data:image/jpeg;base64,${baseImageB64}`
+  // Resize BASEIMAGE to 1080px
+  const baseBuffer = await sharp(BASEIMAGE_PATH)
+    .resize(1080, 1920, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 80 })
+    .toBuffer()
 
-  const userImageRaw = imageBase64[0]
-  const userRawBuffer = Buffer.from(
-    userImageRaw.replace(/^data:image\/\w+;base64,/, ''),
-    'base64'
-  )
-  const userFaceB64 = await prepareUserFace(userRawBuffer)
-  const userImageDataUrl = `data:image/jpeg;base64,${userFaceB64}`
+  // Resize user image to 512px for face reference — smaller = faster
+  const userRaw = imageBase64[0].replace(/^data:image\/\w+;base64,/, '')
+  const userBuffer = await sharp(Buffer.from(userRaw, 'base64'))
+    .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer()
 
-  console.log('[Poster] Submitting to fal.ai flux-pro/kontext...')
+  console.log(`[Poster] User face: resized to 512px, base: 1080px`)
 
-  const requestBody = {
-    prompt,
-    image_url: baseImageDataUrl,
-    image_urls: [userImageDataUrl],
-    num_inference_steps: 28,   // 20 era insuficiente para fidelidad facial en kontext
-    guidance_scale: 3.5,
-    num_images: 1,
-    output_format: 'jpeg',
-    safety_tolerance: '2',
+  // Upload both to fal.ai storage for fast processing
+  console.log('[Poster] Uploading images to fal.ai storage...')
+  const [baseUrl, userUrl] = await Promise.all([
+    uploadToFal(baseBuffer, 'base.jpg'),
+    uploadToFal(userBuffer, 'face.jpg'),
+  ])
+  console.log('[Poster] Upload done, submitting to flux-pro/kontext...')
+
+  const submitRes = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${FAL_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      image_url: baseUrl,
+      image_urls: [userUrl],
+      num_inference_steps: 16,   // reduced for speed
+      guidance_scale: 3.0,
+      num_images: 1,
+      output_format: 'jpeg',
+      safety_tolerance: '2',
+    }),
+  })
+
+  if (!submitRes.ok) {
+    const err = await submitRes.text()
+    throw new Error(`fal.ai submit failed: ${err}`)
   }
 
-  const submitResponse = await fetch(
-    'https://queue.fal.run/fal-ai/flux-pro/kontext',
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${FAL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    }
-  )
-
-  if (!submitResponse.ok) {
-    const errText = await submitResponse.text()
-    throw new Error(`fal.ai submission failed: ${errText}`)
-  }
-
-  const { request_id } = await submitResponse.json() as any
+  const { request_id } = await submitRes.json() as any
   console.log(`[Poster] Submitted request_id=${request_id}`)
 
-  const resultUrl = await pollFalResult(request_id, 180000)
-  console.log(`[Poster] fal.ai completed, downloading...`)
+  // Poll — 4 min max
+  const resultUrl = await pollFalResult(request_id, 240000)
+  console.log(`[Poster] Completed, downloading...`)
 
-  const imageResponse = await fetch(resultUrl)
-  if (!imageResponse.ok) throw new Error('Failed to download generated poster')
-  const rawBuffer = Buffer.from(await imageResponse.arrayBuffer())
+  const imgRes = await fetch(resultUrl)
+  if (!imgRes.ok) throw new Error('Failed to download poster')
+  const raw = Buffer.from(await imgRes.arrayBuffer())
 
-  // OUTPUT MOBILE-FIRST: 390x844px full-screen iPhone SE
-  // ~60-100KB vs ~800KB anterior con 1080x1920
-  const finalBuffer = await sharp(rawBuffer)
-    .resize(390, 844, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 88 })
+  const final = await sharp(raw)
+    .resize(1080, 1920, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 85 })
     .toBuffer()
 
   const filename = `poster-${uuid()}.jpg`
-  const outputPath = path.join(REPORTS_DIR, filename)
-  fs.writeFileSync(outputPath, finalBuffer)
-  console.log(`[Poster] Saved: ${filename} (${Math.round(finalBuffer.length / 1024)}KB)`)
+  fs.writeFileSync(path.join(REPORTS_DIR, filename), final)
+  console.log(`[Poster] Saved: ${filename} (${Math.round(final.length / 1024)}KB)`)
   return `/reports/${filename}`
 }
 
-// ─── POLLING FAL.AI ───────────────────────────────────────────────────────────
-
-async function pollFalResult(requestId: string, maxWaitMs = 180000): Promise<string> {
+async function pollFalResult(requestId: string, maxWaitMs = 240000): Promise<string> {
   const start = Date.now()
   const statusUrl = `https://queue.fal.run/fal-ai/flux-pro/kontext/requests/${requestId}`
 
   while (Date.now() - start < maxWaitMs) {
-    await new Promise(r => setTimeout(r, 4000))
-
+    await new Promise(r => setTimeout(r, 5000))
     try {
-      const statusResponse = await fetch(`${statusUrl}/status`, {
+      const statusRes = await fetch(`${statusUrl}/status`, {
         headers: { 'Authorization': `Key ${FAL_API_KEY}` },
       })
-
-      if (!statusResponse.ok) continue
-
-      const status = await statusResponse.json() as any
-      console.log(`[Poster] fal.ai status: ${status.status} (${Math.round((Date.now() - start) / 1000)}s)`)
+      if (!statusRes.ok) continue
+      const status = await statusRes.json() as any
+      const elapsed = Math.round((Date.now() - start) / 1000)
+      console.log(`[Poster] fal.ai: ${status.status} (${elapsed}s)`)
 
       if (status.status === 'COMPLETED') {
-        const resultResponse = await fetch(statusUrl, {
+        const resultRes = await fetch(statusUrl, {
           headers: { 'Authorization': `Key ${FAL_API_KEY}` },
         })
-        const result = await resultResponse.json() as any
-        const imageUrl = result?.images?.[0]?.url
-        if (!imageUrl) throw new Error('fal.ai returned no image URL')
-        return imageUrl
+        const result = await resultRes.json() as any
+        const url = result?.images?.[0]?.url
+        if (!url) throw new Error('No image URL in result')
+        return url
       }
-
       if (status.status === 'FAILED') {
-        throw new Error(`fal.ai job failed: ${JSON.stringify(status)}`)
+        throw new Error(`fal.ai failed: ${JSON.stringify(status)}`)
       }
     } catch (e: any) {
-      if (e.message.includes('failed') || e.message.includes('no image')) throw e
+      if (e.message.includes('failed') || e.message.includes('No image')) throw e
     }
   }
-
-  throw new Error(`fal.ai job timed out after ${Math.round(maxWaitMs / 1000)}s`)
+  throw new Error(`fal.ai timed out after ${Math.round(maxWaitMs / 1000)}s`)
 }
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function getDressColor(season: string): string {
   const s = season.toLowerCase()

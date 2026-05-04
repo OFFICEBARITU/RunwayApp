@@ -316,7 +316,7 @@ function getAnthropicKey(): string {
   return key
 }
 
-async function resizeImage(imagePath: string): Promise<string> {
+async function resizeImageForClaude(imagePath: string): Promise<string> {
   try {
     const buf = await sharp(imagePath)
       .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
@@ -330,7 +330,7 @@ async function resizeImage(imagePath: string): Promise<string> {
 
 async function callClaude(prompt: string, imagePaths: string[]): Promise<string> {
   const key = getAnthropicKey()
-  const resized = await Promise.all(imagePaths.map(resizeImage))
+  const resized = await Promise.all(imagePaths.map(resizeImageForClaude))
   const imageContent: any[] = resized.map(data => ({
     type: 'image',
     source: { type: 'base64', media_type: 'image/jpeg', data },
@@ -351,10 +351,17 @@ async function callClaude(prompt: string, imagePaths: string[]): Promise<string>
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
-export async function runAnalysis(imagePaths: string[]): Promise<AnalysisResult> {
+export async function runAnalysis(imagePaths: string[], lang: string = 'en'): Promise<AnalysisResult> {
+  const langInstruction = lang === 'es' ? '\n\nIMPORTANT: All text fields in the JSON must be written in Spanish (es). Only exception: hex codes and technical measurements stay in English.'
+    : lang === 'pt' ? '\n\nIMPORTANT: All text fields in the JSON must be written in Portuguese (pt). Only exception: hex codes and technical measurements stay in English.'
+    : lang === 'fr' ? '\n\nIMPORTANT: All text fields in the JSON must be written in French (fr). Only exception: hex codes and technical measurements stay in English.'
+    : ''
+  
+  const genderInstruction = '\n\nGENDER DETECTION: First determine if the person in the photo is male or female. Add a \"gender\" field to the root of your JSON with value \"male\" or \"female\". Adjust ALL recommendations accordingly — hairstyles, makeup, clothing, and accessories must be appropriate for the detected gender.'
+
   const [colorimetryRaw, hairstyleRaw] = await Promise.all([
-    callClaude(COLORIMETRY_PROMPT, imagePaths),
-    callClaude(HAIRSTYLE_PROMPT, imagePaths),
+    callClaude(COLORIMETRY_PROMPT + langInstruction + genderInstruction, imagePaths),
+    callClaude(HAIRSTYLE_PROMPT + langInstruction + genderInstruction, imagePaths),
   ])
 
   const colorimetry = parseJSON(colorimetryRaw)
@@ -362,9 +369,14 @@ export async function runAnalysis(imagePaths: string[]): Promise<AnalysisResult>
 
   let referenceImages: AnalysisResult['referenceImages'] = undefined
   if (process.env.UNSPLASH_ACCESS_KEY) {
-    const hq = (hairstyle.bestHairstyles||[]).slice(0,5).map((h:any) => h.imageSearchQuery||h.name)
-    const aq = (hairstyle.hairsToAvoid||[]).slice(0,6).map((h:any) => h.imageSearchQuery||h.name)
-    const oq = (colorimetry.outfitStyles||[]).slice(0,4).map((o:any) => o.searchQuery||o.category)
+    const gender = hairstyle.gender || colorimetry.gender || 'women'
+    const genderWord = gender === 'male' ? 'men' : 'women'
+    const hq = (hairstyle.bestHairstyles||[]).slice(0,5).map((h:any) => 
+      (h.imageSearchQuery||h.name).replace('women', genderWord).replace('woman', genderWord === 'men' ? 'man' : 'woman'))
+    const aq = (hairstyle.hairsToAvoid||[]).slice(0,6).map((h:any) => 
+      (h.imageSearchQuery||h.name).replace('women', genderWord))
+    const oq = (colorimetry.outfitStyles||[]).slice(0,4).map((o:any) => 
+      (o.searchQuery||o.category).replace('women', genderWord))
     const [hi, ai, oi] = await Promise.all([
       Promise.all(hq.map(fetchReferenceImage)),
       Promise.all(aq.map(fetchReferenceImage)),
@@ -373,13 +385,10 @@ export async function runAnalysis(imagePaths: string[]): Promise<AnalysisResult>
     referenceImages = { hairstyles: [...hi, ...ai], outfits: oi }
   }
 
-  // FIX OOM: redimensionar a max 400x500px antes de incrustar en el HTML del PDF.
-  // La imagen original (hasta 10MB) en base64 dentro del HTML causaba que Puppeteer
-  // agotara los 167MB de heap disponibles en Render free tier → FATAL heap OOM.
-  const imageBase64 = await Promise.all(imagePaths.map(async (p) => {
+  const imageBase64 = await Promise.all(imagePaths.map(async p => {
     try {
       const buf = await sharp(p)
-        .resize(400, 500, { fit: 'cover', position: 'top' })
+        .resize(400, 500, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 70 })
         .toBuffer()
       return `data:image/jpeg;base64,${buf.toString('base64')}`

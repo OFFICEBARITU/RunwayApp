@@ -10,37 +10,6 @@ import AudioToggle from '@/components/AudioToggle'
 type AppState = 'landing' | 'payment' | 'analyzing' | 'result'
 type ProductType = 'analysis' | 'poster'
 
-// FIX: helper para polling del job status con timeout y backoff
-async function pollJobStatus(
-  API: string,
-  jobId: string,
-  maxWaitMs = 300000, // 5 minutos máximo
-  intervalMs = 3000
-): Promise<{ reportUrl?: string; posterUrl?: string }> {
-  const start = Date.now()
-
-  while (Date.now() - start < maxWaitMs) {
-    await new Promise(r => setTimeout(r, intervalMs))
-
-    const res = await fetch(`${API}/api/job-status?id=${jobId}`)
-    if (!res.ok) continue
-
-    const data = await res.json()
-
-    if (data.status === 'done') {
-      return { reportUrl: data.reportUrl, posterUrl: data.posterUrl }
-    }
-
-    if (data.status === 'error') {
-      throw new Error(data.error || 'Processing failed')
-    }
-
-    // status === 'processing' → continúa esperando
-  }
-
-  throw new Error('Processing timed out. Please try again.')
-}
-
 export default function Home() {
   const [lang, setLang] = useState<Lang>('en')
   const [appState, setAppState] = useState<AppState>('landing')
@@ -64,262 +33,246 @@ export default function Home() {
     if (!file.type.startsWith('image/')) return
     if (file.size > 10 * 1024 * 1024) return
     const reader = new FileReader()
-    reader.onloadend = () => {
-      setImage(file)
-      setPreview(reader.result as string)
-    }
+    reader.onloadend = () => { setImage(file); setPreview(reader.result as string) }
     reader.readAsDataURL(file)
   }, [])
 
   const handleSelectProduct = useCallback((p: ProductType) => {
-    setProduct(p)
-    setImage(null)
-    setPreview(null)
-    setError('')
+    setProduct(p); setImage(null); setPreview(null); setError('')
   }, [])
 
   const handleCTA = useCallback(() => {
-    if (!image) {
-      setError(String(t.errorUpload1))
-      setTimeout(() => setError(''), 3000)
-      return
-    }
-    setError('')
-    setAppState('payment')
+    if (!image) { setError(String(t.errorUpload1)); setTimeout(() => setError(''), 3000); return }
+    setError(''); setAppState('payment')
   }, [image, t.errorUpload1])
 
   const handlePaymentSuccess = useCallback(async (txId: string) => {
     setAppState('analyzing')
     audio.playVoicePayment()
-
     try {
       const formData = new FormData()
       if (image) formData.append('image0', image)
       formData.append('transactionId', txId)
       formData.append('lang', lang)
-
       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
       const endpoint = product === 'poster' ? `${API}/api/poster` : `${API}/api/analyze`
-
-      // FIX: el backend responde inmediatamente con { success, jobId }
       const res = await fetch(endpoint, { method: 'POST', body: formData })
       if (!res.ok) throw new Error('Processing failed')
       const data = await res.json()
-
-      // FIX: extraer jobId y hacer polling hasta que el job termine
-      const jobId: string = data.jobId
-      if (!jobId) throw new Error('No job ID received from server')
-
-      const result = await pollJobStatus(API, jobId)
-
-      if (product === 'poster') {
-        setPosterUrl(result.posterUrl || null)
-        setReportUrl('')
-      } else {
-        setReportUrl(result.reportUrl || '')
-        setPosterUrl(null)
+      if (!data.jobId) throw new Error('No job ID returned')
+      const jobId = data.jobId
+      let attempts = 0
+      const maxAttempts = 72 // 6 min max
+      const pollJob = async (): Promise<void> => {
+        attempts++
+        if (attempts > maxAttempts) throw new Error('Job timed out')
+        const statusRes = await fetch(`${API}/api/job-status?id=${jobId}`)
+        const status = await statusRes.json()
+        if (status.status === 'done') {
+          if (product === 'poster') { setPosterUrl(status.posterUrl || null); setReportUrl('') }
+          else { setReportUrl(status.reportUrl || ''); setPosterUrl(null) }
+          setAppState('result'); return
+        }
+        if (status.status === 'error') throw new Error(status.error || 'Processing failed')
+        await new Promise(r => setTimeout(r, 5000))
+        return pollJob()
       }
-      setAppState('result')
+      await pollJob()
     } catch (err: any) {
-      setError(String(t.errorPayment))
-      setAppState('landing')
+      setError(String(t.errorPayment)); setAppState('landing')
     }
   }, [image, lang, product, audio, t.errorPayment])
 
   const handleDownload = useCallback(() => {
     audio.playVoiceDownload()
     const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-    if (product === 'poster' && posterUrl) {
-      window.open(`${API}${posterUrl}`, '_blank')
-    } else if (reportUrl) {
-      window.open(`${API}${reportUrl}`, '_blank')
-    }
+    if (product === 'poster' && posterUrl) window.open(`${API}${posterUrl}`, '_blank')
+    else if (reportUrl) window.open(`${API}${reportUrl}`, '_blank')
   }, [reportUrl, posterUrl, product, audio])
 
   const checkoutUrl = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
-
   const price = 'USD 2.99'
 
   return (
-    <main className="min-h-screen bg-noir text-cream" style={{ fontFamily: 'var(--font-montserrat)' }}>
-      <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundImage: 'url(/images/heel-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center 40%', opacity: 0.13, filter: 'blur(3px)' }} />
-      <div className="fixed inset-0 z-0 pointer-events-none" style={{ background: 'rgba(8,8,8,0.82)' }} />
-
-      {/* Header */}
-      <nav className="relative z-10 px-6 py-4 border-b border-white/5">
-        <div style={{ textAlign: 'center', marginBottom: '6px' }}>
-          <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '32px', fontWeight: 300, letterSpacing: '0.55em', textTransform: 'uppercase' }}>
-            {String(t.brand)}
-          </div>
-        </div>
-        <div className="flex gap-4 justify-center">
-          {(['en', 'es', 'pt', 'fr'] as Lang[]).map(l => (
-            <button key={l} className={`lang-btn ${lang === l ? 'active' : ''}`} onClick={() => setLang(l)}>
-              {l.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      <section className="relative z-10 px-6 pt-10 pb-8">
-        <div className="max-w-md mx-auto">
-          <div className="line-editorial mb-5" />
-          <p className="animate-fadeInUp" style={{ fontSize: '9px', letterSpacing: '0.45em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', marginBottom: '14px' }}>
-            Colorimetry · Morphology · Style
-          </p>
-          <h1 className="animate-fadeInUp delay-100" style={{ fontFamily: 'var(--font-cormorant)', fontSize: '42px', fontWeight: 300, fontStyle: 'italic', lineHeight: 1.08, marginBottom: '12px' }}>
-            {String(t.tagline)}
-          </h1>
-          <p className="animate-fadeInUp delay-200" style={{ fontSize: '11px', fontWeight: 200, letterSpacing: '0.06em', color: 'rgba(245,240,232,0.5)', lineHeight: 1.8, marginBottom: '32px', whiteSpace: 'pre-line' }}>
-            {String(t.subtitle)}
-          </p>
-
-          {/* Product Selector */}
-          <div className="animate-fadeInUp delay-300" style={{ marginBottom: '24px' }}>
-            <p style={{ fontSize: '8px', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '14px', textAlign: 'center' }}>
-              {String(t.selectProduct)}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {/* Product 1 — Analysis */}
-              <div
-                onClick={() => handleSelectProduct('analysis')}
-                style={{
-                  border: `1px solid ${product === 'analysis' ? '#C0001A' : 'rgba(245,240,232,0.1)'}`,
-                  padding: '16px',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.2s ease',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* PDF preview */}
-                <div style={{ width: '100%', height: '120px', background: 'rgba(245,240,232,0.03)', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(245,240,232,0.06)' }}>
-                  <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '22px', fontStyle: 'italic', color: 'rgba(245,240,232,0.2)', textAlign: 'center', lineHeight: 1.2 }}>Editorial<br/>Report</div>
-                  <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '6px' }}>6 PAGES · PDF</div>
-                </div>
-                <p style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: product === 'analysis' ? '#C0001A' : 'rgba(245,240,232,0.6)', marginBottom: '4px' }}>
-                  {String(t.prod1Title)}
-                </p>
-                <p style={{ fontSize: '10px', color: 'rgba(245,240,232,0.4)', marginBottom: '6px', lineHeight: 1.5 }}>{String(t.prod1Desc)}</p>
-                <p style={{ fontFamily: 'var(--font-cormorant)', fontSize: '20px', fontWeight: 300, color: 'var(--cream)' }}>USD 2.99</p>
-                {product === 'analysis' && (
-                  <div style={{ position: 'absolute', top: '8px', right: '8px', width: '6px', height: '6px', borderRadius: '50%', background: '#C0001A' }} />
-                )}
-              </div>
-
-              {/* Product 2 — Poster */}
-              <div
-                onClick={() => handleSelectProduct('poster')}
-                style={{
-                  border: `1px solid ${product === 'poster' ? '#C0001A' : 'rgba(245,240,232,0.1)'}`,
-                  padding: '16px',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.2s ease',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Poster preview */}
-                <div style={{ width: '100%', height: '120px', background: 'rgba(245,240,232,0.03)', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(245,240,232,0.06)' }}>
-                  <div style={{ fontFamily: 'var(--font-cormorant)', fontSize: '22px', fontStyle: 'italic', color: 'rgba(245,240,232,0.2)', textAlign: 'center', lineHeight: 1.2 }}>The Devil<br/>Wears Prada</div>
-                  <div style={{ fontSize: '7px', letterSpacing: '0.3em', color: 'rgba(245,240,232,0.1)', marginTop: '6px' }}>POSTER · PNG</div>
-                </div>
-                <p style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: product === 'poster' ? '#C0001A' : 'rgba(245,240,232,0.6)', marginBottom: '4px' }}>
-                  {String(t.prod2Title)}
-                </p>
-                <p style={{ fontSize: '10px', color: 'rgba(245,240,232,0.4)', marginBottom: '6px', lineHeight: 1.5 }}>{String(t.prod2Desc)}</p>
-                <p style={{ fontFamily: 'var(--font-cormorant)', fontSize: '20px', fontWeight: 300, color: 'var(--cream)' }}>USD 2.99</p>
-                {product === 'poster' && (
-                  <div style={{ position: 'absolute', top: '8px', right: '8px', width: '6px', height: '6px', borderRadius: '50%', background: '#C0001A' }} />
-                )}
-              </div>
+    <main style={{ minHeight: '100vh', background: '#FAFAF8', color: '#111', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+      {/* Header — Magazine style */}
+      <header style={{ borderBottom: '3px solid #C0001A', background: '#fff', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto', padding: '0 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 8px' }}>
+            <div style={{ fontFamily: 'Georgia, serif', fontSize: '28px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111' }}>
+              RUNWAY
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {(['en', 'es', 'pt', 'fr'] as Lang[]).map(l => (
+                <button key={l} onClick={() => setLang(l)} style={{
+                  fontSize: '9px', letterSpacing: '0.15em', fontWeight: lang === l ? 700 : 400,
+                  color: lang === l ? '#C0001A' : '#888', background: 'none', border: 'none',
+                  cursor: 'pointer', textTransform: 'uppercase', padding: '2px 0',
+                  borderBottom: lang === l ? '1px solid #C0001A' : 'none'
+                }}>{l}</button>
+              ))}
             </div>
           </div>
+          <div style={{ fontSize: '8px', letterSpacing: '0.4em', textTransform: 'uppercase', color: '#888', paddingBottom: '8px', textAlign: 'center' }}>
+            Personal Image Analysis · AI Editorial
+          </div>
+        </div>
+      </header>
 
-          {/* Upload Zone — 1 image */}
-          <div className="animate-fadeInUp delay-400" style={{ border: '1px solid rgba(245,240,232,0.1)', padding: '20px', marginBottom: '16px' }}>
-            <p style={{ fontSize: '8px', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '14px' }}>
-              {String(t.uploadTitle)}
-            </p>
-            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
-            <div
-              className={`upload-slot ${preview ? 'filled' : ''}`}
-              style={{ height: '200px', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onClick={() => fileRef.current?.click()}
-            >
-              {preview ? (
-                <img src={preview} alt="Upload" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '28px', color: 'rgba(245,240,232,0.15)', marginBottom: '8px' }}>+</div>
-                  <div style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.3)', marginBottom: '4px' }}>
-                    {product === 'poster' ? String(t.slotPoster) : String(t.slotAnalysis)}
-                  </div>
-                  <div style={{ fontSize: '7px', color: 'rgba(245,240,232,0.2)', letterSpacing: '0.1em' }}>JPG · PNG · Max 10MB</div>
-                </div>
-              )}
+      {/* Hero */}
+      <section style={{ background: '#111', color: '#fff', padding: '32px 20px 28px' }}>
+        <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '8px', letterSpacing: '0.5em', textTransform: 'uppercase', color: '#C0001A', marginBottom: '8px', fontWeight: 600 }}>
+                MAY ISSUE
+              </div>
+              <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '36px', fontWeight: 700, lineHeight: 1.05, marginBottom: '12px', letterSpacing: '-0.01em' }}>
+                {String(t.tagline)}
+              </h1>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, fontWeight: 300, whiteSpace: 'pre-line' }}>
+                {String(t.subtitle)}
+              </p>
+            </div>
+            <div style={{ width: '80px', flexShrink: 0 }}>
+              <div style={{ width: '80px', height: '100px', background: '#C0001A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '8px', letterSpacing: '0.2em', color: '#fff', textTransform: 'uppercase', textAlign: 'center', padding: '8px', lineHeight: 1.6 }}>THE DEVIL WEARS PRADA</span>
+              </div>
+              <div style={{ fontSize: '7px', color: 'rgba(255,255,255,0.3)', marginTop: '4px', letterSpacing: '0.15em', textAlign: 'center' }}>IN THEATERS</div>
             </div>
           </div>
-
-          {error && (
-            <p style={{ fontSize: '9px', color: 'var(--rouge)', letterSpacing: '0.05em', textAlign: 'center', marginBottom: '10px' }}>{error}</p>
-          )}
-
-          <button className="animate-fadeInUp delay-400 cta-primary" onClick={handleCTA} disabled={!image}>
-            {String(t.ctaButton)}
-          </button>
-          <p style={{ fontSize: '7px', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.2)', textAlign: 'center', marginTop: '10px' }}>
-            {`Secure payment · ${price} · One-time`}
-          </p>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="relative z-10 px-0 pb-16" style={{ borderTop: '1px solid rgba(245,240,232,0.06)', marginTop: '24px' }}>
-        <div className="max-w-md mx-auto">
+      {/* Main content */}
+      <section style={{ maxWidth: '480px', margin: '0 auto', padding: '24px 20px' }}>
+
+        {/* Product selector — magazine style */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ height: '1px', flex: 1, background: '#ddd' }} />
+            <span style={{ fontSize: '7px', letterSpacing: '0.4em', textTransform: 'uppercase', color: '#999' }}>{String(t.selectProduct)}</span>
+            <div style={{ height: '1px', flex: 1, background: '#ddd' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {/* Product 1 — Analysis */}
+            <div onClick={() => handleSelectProduct('analysis')} style={{
+              border: `2px solid ${product === 'analysis' ? '#C0001A' : '#e5e5e5'}`,
+              cursor: 'pointer', transition: 'all 0.15s',
+              background: product === 'analysis' ? '#fff8f8' : '#fff',
+              position: 'relative',
+            }}>
+              <div style={{ background: product === 'analysis' ? '#C0001A' : '#111', padding: '12px', minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: '18px', fontStyle: 'italic', color: '#fff', lineHeight: 1.2 }}>Editorial<br/>Report</div>
+                  <div style={{ fontSize: '7px', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>6 PAGES · PDF</div>
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px' }}>
+                <div style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', fontWeight: 700, color: product === 'analysis' ? '#C0001A' : '#333', marginBottom: '3px' }}>{String(t.prod1Title)}</div>
+                <div style={{ fontSize: '9px', color: '#888', lineHeight: 1.5, marginBottom: '6px' }}>{String(t.prod1Desc)}</div>
+                <div style={{ fontFamily: 'Georgia, serif', fontSize: '18px', fontWeight: 700, color: '#111' }}>USD 2.99</div>
+              </div>
+              {product === 'analysis' && <div style={{ position: 'absolute', top: '6px', right: '6px', background: '#C0001A', color: '#fff', fontSize: '8px', padding: '2px 5px', letterSpacing: '0.1em' }}>✓</div>}
+            </div>
+
+            {/* Product 2 — Poster */}
+            <div onClick={() => handleSelectProduct('poster')} style={{
+              border: `2px solid ${product === 'poster' ? '#C0001A' : '#e5e5e5'}`,
+              cursor: 'pointer', transition: 'all 0.15s',
+              background: product === 'poster' ? '#fff8f8' : '#fff',
+              position: 'relative',
+            }}>
+              <div style={{ background: product === 'poster' ? '#C0001A' : '#111', padding: '12px', minHeight: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: '16px', fontStyle: 'italic', color: '#fff', lineHeight: 1.2 }}>The Devil<br/>Wears Prada</div>
+                  <div style={{ fontSize: '7px', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>MOVIE POSTER · PNG</div>
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px' }}>
+                <div style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', fontWeight: 700, color: product === 'poster' ? '#C0001A' : '#333', marginBottom: '3px' }}>{String(t.prod2Title)}</div>
+                <div style={{ fontSize: '9px', color: '#888', lineHeight: 1.5, marginBottom: '6px' }}>{String(t.prod2Desc)}</div>
+                <div style={{ fontFamily: 'Georgia, serif', fontSize: '18px', fontWeight: 700, color: '#111' }}>USD 2.99</div>
+              </div>
+              {product === 'poster' && <div style={{ position: 'absolute', top: '6px', right: '6px', background: '#C0001A', color: '#fff', fontSize: '8px', padding: '2px 5px', letterSpacing: '0.1em' }}>✓</div>}
+            </div>
+          </div>
+        </div>
+
+        {/* Upload zone */}
+        <div style={{ border: '1px solid #e5e5e5', marginBottom: '16px', background: '#fff' }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '3px', height: '14px', background: '#C0001A' }} />
+            <span style={{ fontSize: '8px', letterSpacing: '0.35em', textTransform: 'uppercase', color: '#333', fontWeight: 600 }}>{String(t.uploadTitle)}</span>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
+          <div
+            onClick={() => fileRef.current?.click()}
+            style={{ height: '180px', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: preview ? '#000' : '#FAFAF8' }}
+          >
+            {preview ? (
+              <img src={preview} alt="Upload" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <div style={{ fontSize: '32px', color: '#ddd', marginBottom: '8px' }}>+</div>
+                <div style={{ fontSize: '9px', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#bbb', marginBottom: '4px' }}>
+                  {product === 'poster' ? String(t.slotPoster) : String(t.slotAnalysis)}
+                </div>
+                <div style={{ fontSize: '8px', color: '#ccc' }}>JPG · PNG · Max 10MB</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {error && <p style={{ fontSize: '9px', color: '#C0001A', textAlign: 'center', marginBottom: '10px', letterSpacing: '0.05em' }}>{error}</p>}
+
+        {/* CTA */}
+        <button
+          onClick={handleCTA}
+          disabled={!image}
+          style={{
+            width: '100%', padding: '16px', background: image ? '#C0001A' : '#ddd',
+            color: image ? '#fff' : '#999', border: 'none', cursor: image ? 'pointer' : 'not-allowed',
+            fontFamily: 'Georgia, serif', fontSize: '14px', letterSpacing: '0.15em', textTransform: 'uppercase',
+            fontWeight: 700, transition: 'background 0.2s', marginBottom: '8px',
+          }}
+        >
+          {String(t.ctaButton)}
+        </button>
+        <p style={{ fontSize: '8px', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#aaa', textAlign: 'center' }}>
+          Secure payment · {price} · One-time
+        </p>
+
+        {/* Features */}
+        <div style={{ marginTop: '32px', borderTop: '1px solid #e5e5e5', paddingTop: '24px' }}>
           {[
             { num: '01', title: t.feat1Title, desc: t.feat1Desc },
             { num: '02', title: t.feat2Title, desc: t.feat2Desc },
             { num: '03', title: t.feat3Title, desc: t.feat3Desc },
           ].map((f, i) => (
-            <div key={i} style={{ padding: '20px 24px', borderBottom: '1px solid rgba(245,240,232,0.06)', display: 'grid', gridTemplateColumns: '32px 1fr', gap: '12px', alignItems: 'start' }}>
-              <span style={{ fontFamily: 'var(--font-cormorant)', fontSize: '11px', color: 'rgba(245,240,232,0.2)', letterSpacing: '0.1em', paddingTop: '2px' }}>{f.num}</span>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: '10px', padding: '14px 0', borderBottom: i < 2 ? '1px solid #f0f0f0' : 'none' }}>
+              <span style={{ fontFamily: 'Georgia, serif', fontSize: '10px', color: '#C0001A', fontWeight: 700, paddingTop: '2px' }}>{f.num}</span>
               <div>
-                <p style={{ fontSize: '8px', letterSpacing: '0.35em', textTransform: 'uppercase', color: 'var(--cream)', marginBottom: '5px' }}>{f.title}</p>
-                <p style={{ fontSize: '10.5px', color: 'rgba(245,240,232,0.4)', lineHeight: 1.7, fontWeight: 200 }}>{f.desc}</p>
+                <p style={{ fontSize: '8px', letterSpacing: '0.3em', textTransform: 'uppercase', fontWeight: 700, color: '#111', marginBottom: '4px' }}>{f.title}</p>
+                <p style={{ fontSize: '10px', color: '#666', lineHeight: 1.7 }}>{f.desc}</p>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      <footer className="relative z-10 px-6 py-8 text-center" style={{ borderTop: '1px solid rgba(245,240,232,0.06)' }}>
-        <p style={{ fontSize: '8px', letterSpacing: '0.2em', color: 'rgba(245,240,232,0.2)', lineHeight: 1.8 }}>{String(t.footerText)}</p>
-        <p style={{ fontSize: '7px', letterSpacing: '0.15em', color: 'rgba(245,240,232,0.12)', marginTop: '6px' }}>
-          © {new Date().getFullYear()} Runway · {String(t.footerRights)}
-        </p>
-        <p style={{ fontSize: '7px', color: 'rgba(245,240,232,0.15)', marginTop: '6px', letterSpacing: '0.05em' }}>{String(t.privacyNote)}</p>
+      <footer style={{ background: '#111', color: '#fff', padding: '24px 20px', marginTop: '32px', textAlign: 'center' }}>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: '18px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '8px' }}>RUNWAY</div>
+        <p style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.15em', marginBottom: '4px' }}>{String(t.footerText)}</p>
+        <p style={{ fontSize: '7px', color: 'rgba(255,255,255,0.2)' }}>© {new Date().getFullYear()} Runway · {String(t.footerRights)}</p>
+        <p style={{ fontSize: '7px', color: 'rgba(255,255,255,0.2)', marginTop: '4px' }}>{String(t.privacyNote)}</p>
       </footer>
 
       {appState === 'payment' && (
-        <PaymentModal
-          t={t}
-          product={product}
-          price={price}
-          checkoutUrl={checkoutUrl}
-          onSuccess={handlePaymentSuccess}
-          onClose={() => setAppState('landing')}
-        />
+        <PaymentModal t={t} product={product} price={price} checkoutUrl={checkoutUrl} onSuccess={handlePaymentSuccess} onClose={() => setAppState('landing')} />
       )}
       {appState === 'analyzing' && <AnalysisLoader t={t} product={product} />}
-      {appState === 'result' && (
-        <ResultScreen
-          t={t}
-          product={product}
-          onDownload={handleDownload}
-        />
-      )}
-
+      {appState === 'result' && <ResultScreen t={t} product={product} onDownload={handleDownload} />}
       <AudioToggle t={t} enabled={audio.bgEnabled} onToggle={audio.toggleBackground} />
     </main>
   )
