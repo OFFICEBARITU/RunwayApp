@@ -30,7 +30,7 @@ async function generateReportHTML(data: {
   const L: Record<string, string> = {
     personalImage: lang === 'es' ? 'Imagen Personal' : lang === 'pt' ? 'Imagem Pessoal' : lang === 'fr' ? 'Image Personnelle' : 'Personal Image',
     premiumAdvisor: lang === 'es' ? 'Asesor de Imagen Premium' : lang === 'pt' ? 'Consultor de Imagem Premium' : lang === 'fr' ? 'Conseiller Image Premium' : 'Premium Image Advisor',
-    editorialGuide: lang === 'es' ? 'Guía editorial de imagen' : lang === 'pt' ? 'Guia editorial de imagem' : lang === 'fr' ? 'Guide éditorial d'image' : 'Editorial image guide',
+    editorialGuide: lang === 'es' ? 'Guía editorial de imagen' : lang === 'pt' ? 'Guia editorial de imagem' : lang === 'fr' ? 'Guide editorial d image' : 'Editorial image guide',
     favorableColors: lang === 'es' ? 'Colores Favorables' : lang === 'pt' ? 'Cores Favoráveis' : lang === 'fr' ? 'Couleurs Favorables' : 'Favorable Colors',
     avoidColors: lang === 'es' ? 'Colores a Evitar' : lang === 'pt' ? 'Cores a Evitar' : lang === 'fr' ? 'Couleurs à Éviter' : 'Colors to Avoid',
     favorable: lang === 'es' ? '✓ Favorables' : lang === 'pt' ? '✓ Favoráveis' : lang === 'fr' ? '✓ Favorables' : '✓ Favorable',
@@ -39,7 +39,7 @@ async function generateReportHTML(data: {
     ranking: lang === 'es' ? '★ Ranking Top' : lang === 'pt' ? '★ Ranking Top' : lang === 'fr' ? '★ Classement Top' : '★ Top Ranking',
     styleGuide: lang === 'es' ? 'Guía de Estilo' : lang === 'pt' ? 'Guia de Estilo' : lang === 'fr' ? 'Guide de Style' : 'Style Guide',
     dos: lang === 'es' ? 'Lo que funciona' : lang === 'pt' ? 'O que funciona' : lang === 'fr' ? 'Ce qui marche' : 'What works',
-    donts: lang === 'es' ? 'Lo que evitar' : lang === 'pt' ? 'O que evitar' : lang === 'fr' ? 'Ce qu'il faut éviter' : 'What to avoid',
+    donts: lang === 'es' ? 'Lo que evitar' : lang === 'pt' ? 'O que evitar' : lang === 'fr' ? 'Ce qu il faut eviter' : 'What to avoid',
   }
 
   // Resize user image to thumbnail to prevent OOM in Puppeteer
