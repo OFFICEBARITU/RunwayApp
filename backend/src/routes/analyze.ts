@@ -75,7 +75,7 @@ analyzeRouter.post(
           console.log(`[FLOW] PDF done: ${reportUrl}`)
 
           await fs.promises.unlink(img0.path).catch(() => {})
-          if (locked) consumeValidatedPayment(transactionId)
+          if (locked) consumeValidatedPayment()
 
           completeJob(jobId, { reportUrl })
         } catch (err: any) {

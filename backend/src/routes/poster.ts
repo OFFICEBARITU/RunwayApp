@@ -154,7 +154,7 @@ posterRouter.post(
       setJobFalRequestId(jobId, prediction.id, transactionId)
 
       await fs.promises.unlink(img0.path).catch(() => {})
-      if (locked) consumeValidatedPayment(transactionId)
+      if (locked) consumeValidatedPayment()
 
       return res.json({ success: true, jobId })
 
