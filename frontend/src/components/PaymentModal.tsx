@@ -52,7 +52,8 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
   useEffect(() => {
     if (window.paypal) { setSdkReady(true); return }
     const script = document.createElement('script')
-    script.src = `https://www.paypal.com/sdk/js?client-id=${CLIENT_ID}&currency=USD&intent=capture&components=buttons`
+    const isSandbox = !process.env.NEXT_PUBLIC_PAYPAL_LIVE
+    script.src = `https://www.paypal.com/sdk/js?client-id=${CLIENT_ID}&currency=USD&intent=capture&components=buttons${isSandbox ? '&buyer-country=US' : ''}`
     script.onload = () => setSdkReady(true)
     script.onerror = () => setError('Failed to load PayPal')
     document.body.appendChild(script)
@@ -74,18 +75,28 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
         height: 48,
       },
       createOrder: async () => {
-        const res = await fetch(`${API}/api/create-order`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product,
-            sessionId: sessionId.current,
-            amount: '2.99',
-          }),
-        })
-        const data = await res.json()
-        if (!data.id) throw new Error('Order creation failed')
-        return data.id
+        try {
+          const res = await fetch(`${API}/api/create-order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              product,
+              sessionId: sessionId.current,
+              amount: '2.99',
+            }),
+          })
+          const data = await res.json()
+          console.log('[PayPal] create-order response:', data)
+          if (!data.id) {
+            setError(`Order failed: ${data.error || 'Unknown error'}`)
+            throw new Error(data.error || 'Order creation failed')
+          }
+          return data.id
+        } catch (err: any) {
+          console.error('[PayPal] createOrder error:', err.message)
+          setError(`Payment error: ${err.message}`)
+          throw err
+        }
       },
       onApprove: async (data: any) => {
         setStatus('waiting')
@@ -106,8 +117,8 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
         }
       },
       onError: (err: any) => {
-        console.error('PayPal error:', err)
-        setError('Payment failed. Please try again.')
+        console.error('PayPal SDK error:', JSON.stringify(err))
+        if (!error) setError('Payment failed. Check console for details.')
       },
       onCancel: () => {
         setStatus('idle')

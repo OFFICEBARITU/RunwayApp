@@ -41,9 +41,12 @@ app.use('/reports', express.static(path.join(__dirname, '../reports')))
 
 // Routes
 app.use('/api/analyze', analyzeRouter)
+app.use('/api/poster', posterRouter)
+app.use('/api', paypalRouter)
 app.use('/webhooks', webhookRouter)
 app.use('/api/report', reportRouter)
 app.use('/api/payment-status', paymentStatusRouter)
+app.use('/api/job-status', jobStatusRouter)
 
 // Health check
 app.get('/health', (_: any, res: any) => res.json({ status: 'ok', service: 'Runway API' }))
