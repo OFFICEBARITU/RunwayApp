@@ -5,7 +5,7 @@ import fs from 'fs'
 import { v4 as uuid } from 'uuid'
 import { runAnalysis } from '../services/analysisService'
 import { generatePDF } from '../services/pdfService'
-import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
+import { isRecentPaymentValidated, consumeValidatedPayment } from './paymentStatus'
 import { createJob, completeJob, failJob } from './jobStatus'
 
 export const analyzeRouter = Router()
@@ -41,7 +41,7 @@ analyzeRouter.post(
         return res.status(402).json({ error: 'Payment required.' })
       }
 
-      const locked = markPaymentProcessing(transactionId)
+      const locked = isRecentPaymentValidated(transactionId)
       if (!locked) {
         if (process.env.NODE_ENV === 'production') {
           console.error(`[FLOW] analyze gate failed orderId=${transactionId}`)

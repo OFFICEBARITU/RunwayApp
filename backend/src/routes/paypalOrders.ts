@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { validatePayment } from './paymentStatus'
+import { markPaymentValidated } from './paymentStatus'
 
 export const paypalRouter = Router()
 
@@ -83,7 +83,7 @@ paypalRouter.post('/capture-order', async (req: Request, res: Response) => {
     console.log(`[PayPal] Order captured: ${orderID} status=${status} session=${sessionId}`)
 
     if (status === 'COMPLETED') {
-      validatePayment(orderID, sessionId, product || 'analysis')
+      markPaymentValidated(orderID, sessionId)
     }
 
     return res.json({ status, orderId: orderID })

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { validatePayment } from './paymentStatus'
+import { markPaymentValidated } from './paymentStatus'
 
 export const webhookRouter = Router()
 
@@ -77,7 +77,7 @@ webhookRouter.post('/', async (req: Request, res: Response) => {
     console.log(`[PayPal Webhook] Capture: ${orderId} | session: ${sessionId} | product: ${product}`)
 
     if (orderId) {
-      validatePayment(orderId, sessionId, product || 'analysis')
+      markPaymentValidated(orderId, sessionId)
     }
 
     return res.json({ received: true })

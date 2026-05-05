@@ -4,7 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import { v4 as uuid } from 'uuid'
 import sharp from 'sharp'
-import { markPaymentProcessing, consumeValidatedPayment } from './paymentStatus'
+import { isRecentPaymentValidated, consumeValidatedPayment } from './paymentStatus'
 import { createJob, setJobFalRequestId, failJob, completeJob } from './jobStatus'
 
 export const posterRouter = Router()
@@ -49,9 +49,9 @@ posterRouter.post(
       const { transactionId } = req.body
       if (!transactionId) return res.status(402).json({ error: 'Payment required.' })
 
-      const locked = markPaymentProcessing(transactionId)
+      const locked = isRecentPaymentValidated(transactionId)
       if (!locked && process.env.NODE_ENV === 'production') {
-        return res.status(409).json({ error: 'Payment not validated or already processing.' })
+        return res.status(402).json({ error: 'Payment not validated.' })
       }
 
       const files = req.files as Record<string, any[]>
