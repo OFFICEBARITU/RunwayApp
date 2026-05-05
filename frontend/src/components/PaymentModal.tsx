@@ -158,8 +158,8 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(8,8,8,0.88)', backdropFilter: 'blur(8px)' }} />
-      <div style={{ position: 'fixed', inset: 0, zIndex: 51, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ background: '#0f0f0f', border: '1px solid rgba(245,240,232,0.12)', padding: '32px 24px', width: '100%', maxWidth: '380px', position: 'relative', borderRadius: '2px' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 51, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '16px', overflowY: 'auto' }}>
+        <div style={{ background: '#0f0f0f', border: '1px solid rgba(245,240,232,0.12)', padding: '32px 24px', width: '100%', maxWidth: '380px', position: 'relative', borderRadius: '2px', maxHeight: '90vh', overflowY: 'auto' }}>
           <button onClick={onClose} style={{ position: 'absolute', top: '14px', right: '18px', background: 'none', border: 'none', color: 'rgba(245,240,232,0.35)', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}>×</button>
 
           <div style={{ width: '28px', height: '1px', background: '#C0001A', marginBottom: '16px' }} />
