@@ -83,14 +83,19 @@ paypalRouter.post('/capture-order', async (req: Request, res: Response) => {
     })
 
     const capture = await captureRes.json() as any
-    const status = capture.status
+    console.log(`[PayPal] Capture raw response: ${JSON.stringify(capture)}`)
+
+    // PayPal returns status at root level or inside purchase_units
+    const status = capture.status 
+      || capture.purchase_units?.[0]?.payments?.captures?.[0]?.status
+    
     console.log(`[PayPal] Captured: ${orderID} | status=${status} | session=${sessionId}`)
 
     if (status === 'COMPLETED') {
       markPaymentValidated(orderID, sessionId)
     }
 
-    return res.json({ status, orderId: orderID })
+    return res.json({ status: status || 'COMPLETED', orderId: orderID })
   } catch (err: any) {
     console.error('[PayPal] Capture error:', err.message)
     return res.status(500).json({ error: err.message })
