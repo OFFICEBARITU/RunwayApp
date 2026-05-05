@@ -7,6 +7,8 @@ import dotenv from 'dotenv'
 import { analyzeRouter } from './routes/analyze'
 import { webhookRouter } from './routes/webhook'
 import { paypalRouter } from './routes/paypalOrders'
+import { posterRouter } from './routes/poster'
+import { jobStatusRouter } from './routes/jobStatus'
 import { reportRouter } from './routes/report'
 import { paymentStatusRouter } from './routes/paymentStatus'
 
