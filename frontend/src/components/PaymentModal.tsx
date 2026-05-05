@@ -18,9 +18,11 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
   const [status, setStatus] = useState<'idle' | 'waiting' | 'processing'>('idle')
   const [error, setError] = useState('')
   const [sdkReady, setSdkReady] = useState(false)
+  const [sdkError, setSdkError] = useState(false)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const firedRef = useRef(false)
   const sessionId = useRef('ls_' + Date.now())
+  const buttonsRendered = useRef(false)
   const API = process.env.NEXT_PUBLIC_API_URL || ''
   const CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''
 
@@ -40,31 +42,47 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
           firedRef.current = true
           stopPolling()
           setStatus('processing')
-          const effectiveId = data.orderId || sid
-          setTimeout(() => onSuccess(effectiveId), 50)
+          setTimeout(() => onSuccess(data.orderId || sid), 50)
         }
       } catch {}
     }, 3000)
     setTimeout(() => stopPolling(), 600000)
   }
 
-  // Load PayPal SDK
   useEffect(() => {
-    if (window.paypal) { setSdkReady(true); return }
-    const script = document.createElement('script')
-    const isSandbox = !process.env.NEXT_PUBLIC_PAYPAL_LIVE
-    script.src = `https://www.paypal.com/sdk/js?client-id=${CLIENT_ID}&currency=USD&intent=capture&components=buttons${isSandbox ? '&buyer-country=US' : ''}`
-    script.onload = () => setSdkReady(true)
-    script.onerror = () => setError('Failed to load PayPal')
-    document.body.appendChild(script)
-    return () => { stopPolling() }
-  }, [])
+    if (!CLIENT_ID) {
+      setSdkError(true)
+      console.error('[PayPal] NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set')
+      return
+    }
 
-  // Render PayPal buttons
+    if (window.paypal) {
+      setSdkReady(true)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = `https://www.paypal.com/sdk/js?client-id=${CLIENT_ID}&currency=USD&intent=capture&components=buttons`
+    script.async = true
+    script.onload = () => {
+      console.log('[PayPal] SDK loaded successfully')
+      setSdkReady(true)
+    }
+    script.onerror = (e) => {
+      console.error('[PayPal] SDK failed to load:', e)
+      setSdkError(true)
+    }
+    document.body.appendChild(script)
+
+    return () => { stopPolling() }
+  }, [CLIENT_ID])
+
   useEffect(() => {
-    if (!sdkReady || !window.paypal || status !== 'idle') return
+    if (!sdkReady || !window.paypal || status !== 'idle' || buttonsRendered.current) return
     const container = document.getElementById('paypal-buttons')
-    if (!container || container.children.length > 0) return
+    if (!container) return
+
+    buttonsRendered.current = true
 
     window.paypal.Buttons({
       style: {
@@ -87,43 +105,52 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
           })
           const data = await res.json()
           console.log('[PayPal] create-order response:', data)
-          if (!data.id) {
-            setError(`Order failed: ${data.error || 'Unknown error'}`)
-            throw new Error(data.error || 'Order creation failed')
-          }
+          if (!data.id) throw new Error(data.error || 'Order creation failed')
           return data.id
         } catch (err: any) {
-          console.error('[PayPal] createOrder error:', err.message)
-          setError(`Payment error: ${err.message}`)
+          console.error('[PayPal] createOrder failed:', err.message)
+          setError(`Error: ${err.message}`)
           throw err
         }
       },
       onApprove: async (data: any) => {
         setStatus('waiting')
         startPolling(sessionId.current)
-        const res = await fetch(`${API}/api/capture-order`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderID: data.orderID, sessionId: sessionId.current, product }),
-        })
-        const capture = await res.json()
-        if (capture.status === 'COMPLETED') {
-          if (!firedRef.current) {
+        try {
+          const res = await fetch(`${API}/api/capture-order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderID: data.orderID,
+              sessionId: sessionId.current,
+              product,
+            }),
+          })
+          const capture = await res.json()
+          console.log('[PayPal] capture response:', capture)
+          if (capture.status === 'COMPLETED' && !firedRef.current) {
             firedRef.current = true
             stopPolling()
             setStatus('processing')
-            setTimeout(() => onSuccess(sessionId.current), 50)
+            setTimeout(() => onSuccess(capture.orderId || sessionId.current), 50)
           }
+        } catch (err: any) {
+          console.error('[PayPal] capture failed:', err.message)
+          setError(`Capture error: ${err.message}`)
         }
       },
       onError: (err: any) => {
-        console.error('PayPal SDK error:', JSON.stringify(err))
-        if (!error) setError('Payment failed. Check console for details.')
+        console.error('[PayPal] Button error:', err)
+        if (!error) setError('Payment failed. Please try again.')
       },
       onCancel: () => {
+        console.log('[PayPal] Payment cancelled')
         setStatus('idle')
       },
-    }).render('#paypal-buttons')
+    }).render('#paypal-buttons').catch((err: any) => {
+      console.error('[PayPal] Render error:', err)
+      setSdkError(true)
+    })
   }, [sdkReady, status])
 
   const title = product === 'poster' ? String(t.prod2Title) : String(t.prod1Title)
@@ -156,8 +183,15 @@ export default function PaymentModal({ t, product, price, onSuccess, onClose }: 
 
           {status === 'idle' && (
             <>
-              {!sdkReady && <p style={{ fontSize: '9px', color: 'rgba(245,240,232,0.3)', textAlign: 'center', padding: '12px 0' }}>Loading payment options...</p>}
-              <div id="paypal-buttons" />
+              {sdkError ? (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <p style={{ fontSize: '10px', color: '#C0001A', marginBottom: '12px' }}>Payment system unavailable.</p>
+                  <p style={{ fontSize: '9px', color: 'rgba(245,240,232,0.3)' }}>Please try again later or contact support.</p>
+                </div>
+              ) : !sdkReady ? (
+                <p style={{ fontSize: '9px', color: 'rgba(245,240,232,0.3)', textAlign: 'center', padding: '12px 0' }}>Loading payment options...</p>
+              ) : null}
+              <div id="paypal-buttons" style={{ minHeight: sdkReady && !sdkError ? '50px' : '0' }} />
               {error && <p style={{ fontSize: '9px', color: '#C0001A', textAlign: 'center', marginTop: '8px' }}>{error}</p>}
             </>
           )}
