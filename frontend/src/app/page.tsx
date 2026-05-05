@@ -188,7 +188,7 @@ export default function Home() {
     else if (reportUrl) window.open(`${API}${reportUrl}`, '_blank')
   }, [reportUrl, posterUrl, product, audio])
 
-  const checkoutUrl = process.env.NEXT_PUBLIC_LS_CHECKOUT_URL || ''
+  const checkoutUrl = '' // PayPal handles checkout internally
   const price = 'USD 2.99'
 
   return (
